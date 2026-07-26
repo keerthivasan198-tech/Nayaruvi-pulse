@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Flag, User, CheckCircle2, MessageSquare, Paperclip } from 'lucide-react';
 
-export default function TaskListView({ tasks, columns, onTaskClick }) {
+export default function TaskListView({ tasks, columns, onTaskClick, projectMembers = [] }) {
   // Group tasks by column
   const groupedTasks = columns.map(colId => {
     return {
@@ -58,11 +58,23 @@ export default function TaskListView({ tasks, columns, onTaskClick }) {
                   </div>
                   
                   <div className="w-[20%] flex items-center">
-                    {task.assigneeId ? (
-                      <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px] border border-white shadow-sm">
-                        JD
-                      </div>
-                    ) : (
+                    {task.assigneeId ? (() => {
+                      const assignee = projectMembers.find(m => m.uid === task.assigneeId);
+                      const avatarUrl = assignee ? `https://ui-avatars.com/api/?name=${encodeURIComponent(assignee.name || assignee.email)}&background=4F6370&color=fff` : null;
+                      
+                      return assignee ? (
+                        <img 
+                          src={avatarUrl} 
+                          alt={assignee.name || assignee.email} 
+                          title={assignee.name || assignee.email}
+                          className="w-7 h-7 rounded-full shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px] border border-white shadow-sm">
+                          -
+                        </div>
+                      );
+                    })() : (
                       <span className="text-xs font-medium text-text-secondary italic">Empty</span>
                     )}
                   </div>

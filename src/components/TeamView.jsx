@@ -10,7 +10,7 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
   const [loading, setLoading] = useState(true);
 
   const currentUserRole = members.find(m => m.uid === auth.currentUser?.uid)?.role || 'Member';
-  const isPrivileged = currentUserRole === 'Founder' || currentUserRole === 'Co-Founder' || currentUserRole === 'Admin';
+  const isPrivileged = currentUserRole === 'Founder';
 
   // 2. Fetch Members when a project is selected
   useEffect(() => {

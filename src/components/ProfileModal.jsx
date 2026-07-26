@@ -16,6 +16,21 @@ export default function ProfileModal({ isOpen, onClose, profile, onSave }) {
 
   const [isSaved, setIsSaved] = useState(false);
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size too large. Please upload an image under 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, avatar: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
@@ -64,13 +79,12 @@ export default function ProfileModal({ isOpen, onClose, profile, onSave }) {
               </div>
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-bold text-[#4A443E] mb-1">Avatar Image URL</label>
+              <label className="block text-xs font-bold text-[#4A443E] mb-1">Upload Profile Photo</label>
               <input 
-                type="text" 
-                value={formData.avatar}
-                onChange={e => setFormData({ ...formData, avatar: e.target.value })}
-                className="w-full bg-[#FAF8F5] border border-[#DDD5CC] rounded-lg px-3 py-1.5 text-xs text-[#2B2420] focus:outline-none focus:border-[#2B2420]"
-                placeholder="https://..."
+                type="file" 
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="w-full bg-[#FAF8F5] border border-[#DDD5CC] rounded-lg px-3 py-1.5 text-xs text-[#2B2420] focus:outline-none focus:border-[#2B2420] file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-[#2B2420] file:text-white hover:file:bg-black transition-colors"
               />
             </div>
           </div>
@@ -105,20 +119,17 @@ export default function ProfileModal({ isOpen, onClose, profile, onSave }) {
             />
           </div>
 
-          {/* Role */}
+          {/* Role (Read Only) */}
           <div>
             <label className="block text-xs font-bold text-[#4A443E] mb-1.5 flex items-center">
-              <Shield size={14} className="mr-1.5 text-[#7D7268]" /> Role / Title
+              <Shield size={14} className="mr-1.5 text-[#7D7268]" /> Workspace Role
             </label>
-            <select 
+            <input 
+              type="text" 
               value={formData.role}
-              onChange={e => setFormData({ ...formData, role: e.target.value })}
-              className="w-full bg-white border border-[#DDD5CC] rounded-xl px-3.5 py-2.5 text-sm text-[#2B2420] font-medium focus:outline-none focus:border-[#2B2420] transition-all cursor-pointer"
-            >
-              <option value="Founder">Founder</option>
-              <option value="Co-Founder">Co-Founder</option>
-              <option value="Member">Member</option>
-            </select>
+              disabled
+              className="w-full bg-gray-100 border border-[#DDD5CC] rounded-xl px-3.5 py-2.5 text-sm text-[#7D7268] font-medium cursor-not-allowed"
+            />
           </div>
 
           {/* Bio */}

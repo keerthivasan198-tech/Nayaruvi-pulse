@@ -252,6 +252,7 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
               tasks={tasks} 
               columns={COLUMN_ORDER} 
               onTaskClick={setSelectedTask} 
+              projectMembers={projectMembers}
             />
           </div>
         )}
@@ -318,7 +319,7 @@ function KanbanColumn({ column, tasks, isAdding, setIsAdding, newTaskContent, se
             }`}
           >
             {tasks.map((task, index) => (
-              <KanbanCard key={task.id} task={task} index={index} onTaskClick={onTaskClick} />
+              <KanbanCard key={task.id} task={task} index={index} onTaskClick={onTaskClick} projectMembers={projectMembers} />
             ))}
             {provided.placeholder}
 
@@ -413,7 +414,7 @@ function KanbanColumn({ column, tasks, isAdding, setIsAdding, newTaskContent, se
   );
 }
 
-function KanbanCard({ task, index, onTaskClick }) {
+function KanbanCard({ task, index, onTaskClick, projectMembers = [] }) {
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'Urgent': return 'text-danger bg-danger/10';
@@ -422,6 +423,9 @@ function KanbanCard({ task, index, onTaskClick }) {
       default: return 'text-text-secondary bg-gray-100';
     }
   };
+
+  const assignee = task.assigneeId ? projectMembers.find(m => m.uid === task.assigneeId) : null;
+  const avatarUrl = assignee ? `https://ui-avatars.com/api/?name=${encodeURIComponent(assignee.name || assignee.email)}&background=4F6370&color=fff` : null;
 
   const handleComplete = async (e) => {
     e.stopPropagation();
@@ -488,9 +492,18 @@ function KanbanCard({ task, index, onTaskClick }) {
             {/* Footer Row */}
             <div className="flex justify-between items-center mt-auto">
               {/* Assignee Avatar */}
-              <div className="w-7 h-7 rounded-full bg-[#4F6370] text-white flex items-center justify-center font-bold text-[10px] shadow-sm">
-                SS
-              </div>
+              {assignee ? (
+                <img 
+                  src={avatarUrl} 
+                  alt={assignee.name || assignee.email} 
+                  title={assignee.name || assignee.email}
+                  className="w-7 h-7 rounded-full shadow-sm"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-[#4F6370] text-white flex items-center justify-center font-bold text-[10px] shadow-sm">
+                  -
+                </div>
+              )}
 
               {/* Status Row Icons */}
               <div className="flex items-center space-x-2">

@@ -11,15 +11,19 @@ export default function TaskDetailModal({ task, onClose, projectId }) {
 
   useEffect(() => {
     if (projectId) {
-      const projRef = ref(db, `dashboard_projects/${projectId}/members`);
-      const unSub = onValue(projRef, (snapshot) => {
-        if (snapshot.exists()) {
-          setMembers(Object.values(snapshot.val()));
-        } else {
-          setMembers([]);
+      const fetchMembers = async () => {
+        try {
+          const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
+          const res = await fetch(`${API_URL}/projects/${projectId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setMembers(data.members || []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch members for task modal:", err);
         }
-      });
-      return () => unSub();
+      };
+      fetchMembers();
     }
   }, [projectId]);
 
@@ -59,6 +63,19 @@ export default function TaskDetailModal({ task, onClose, projectId }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this task?")) return;
+    try {
+      const { remove } = await import('firebase/database');
+      const taskRef = ref(db, `dashboard_tasks/${task.id}`);
+      await remove(taskRef);
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to delete task.');
+    }
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -89,6 +106,12 @@ export default function TaskDetailModal({ task, onClose, projectId }) {
             <span className="text-xs uppercase tracking-wide">ID: {task.id.slice(-6)}</span>
           </div>
           <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleDelete} 
+              className="px-4 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 text-sm font-bold rounded-md shadow-sm hover:bg-rose-100 transition-colors"
+            >
+              Delete
+            </button>
             <button 
               onClick={handleSave} 
               disabled={isSaving}
