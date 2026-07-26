@@ -119,18 +119,7 @@ export default function ProfileModal({ isOpen, onClose, profile, onSave }) {
             />
           </div>
 
-          {/* Role (Read Only) */}
-          <div>
-            <label className="block text-xs font-bold text-[#4A443E] mb-1.5 flex items-center">
-              <Shield size={14} className="mr-1.5 text-[#7D7268]" /> Workspace Role
-            </label>
-            <input 
-              type="text" 
-              value={formData.role}
-              disabled
-              className="w-full bg-gray-100 border border-[#DDD5CC] rounded-xl px-3.5 py-2.5 text-sm text-[#7D7268] font-medium cursor-not-allowed"
-            />
-          </div>
+
 
           {/* Bio */}
           <div>

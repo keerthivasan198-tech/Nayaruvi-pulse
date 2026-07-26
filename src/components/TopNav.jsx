@@ -1,30 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Search, Bell, Check, MessageSquare } from 'lucide-react';
+import { Menu, Search, Bell, Check, MessageSquare, X } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 
 export default function TopNav({ toggleSidebar }) {
   const [notifications, setNotifications] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    const saved = localStorage.getItem('dismissed_notifications');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
-    const activityRef = ref(db, 'dashboard_activity');
-    const unsubscribe = onValue(activityRef, (snapshot) => {
+    const tasksRef = ref(db, 'dashboard_tasks');
+    const unsubscribe = onValue(tasksRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const activities = Object.values(data);
-        const myTaskAssignments = activities.filter(a => 
-          a.type === 'task_assignment' && 
+        const allTasks = Object.values(data);
+        const myTasks = allTasks.filter(t => 
           auth.currentUser && 
-          a.targetUserId === auth.currentUser.uid
-        ).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 5); // get last 5
+          t.assigneeId === auth.currentUser.uid &&
+          t.status !== 'col-completed' &&
+          !dismissedIds.includes(t.id)
+        );
         
-        setNotifications(myTaskAssignments);
+        setNotifications(myTasks);
+      } else {
+        setNotifications([]);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [dismissedIds]);
+
+  const handleDismiss = (taskId, e) => {
+    e.stopPropagation();
+    const newDismissed = [...dismissedIds, taskId];
+    setDismissedIds(newDismissed);
+    localStorage.setItem('dismissed_notifications', JSON.stringify(newDismissed));
+  };
 
   return (
     <header className="h-[64px] md:h-[72px] bg-[var(--color-background)] border-b border-[var(--color-border)] flex items-center justify-between px-4 md:px-8 sticky top-0 z-20">
@@ -79,22 +93,26 @@ export default function TopNav({ toggleSidebar }) {
                   No new notifications
                 </div>
               ) : (
-                notifications.map((notif, i) => (
-                  <div key={i} className="p-4 border-b border-[#D4C99E]/20 hover:bg-[#FAF7EC] transition-colors flex items-start gap-3 cursor-pointer">
+                notifications.map((task, i) => (
+                  <div key={task.id} className="p-4 border-b border-[#D4C99E]/20 hover:bg-[#FAF7EC] transition-colors flex items-start gap-3 relative group">
                     <div className="w-8 h-8 rounded-full bg-[#274245]/10 text-[#274245] flex items-center justify-center shrink-0 mt-0.5">
-                      <MessageSquare size={14} />
+                      <Check size={14} />
                     </div>
-                    <div>
+                    <div className="pr-6">
                       <h4 className="text-xs font-bold text-[#274245] mb-0.5 leading-tight">
-                        {notif.user} assigned a task to you
+                        Task Assigned to You
                       </h4>
                       <p className="text-[11px] text-[#5C6E6F] font-medium line-clamp-2 leading-snug">
-                        "{notif.content}"
+                        "{task.content}"
                       </p>
-                      <span className="text-[9px] text-[#5C6E6F] font-bold mt-1.5 block opacity-70">
-                        {new Date(notif.timestamp).toLocaleDateString()}
-                      </span>
                     </div>
+                    <button 
+                      onClick={(e) => handleDismiss(task.id, e)}
+                      className="absolute right-3 top-4 text-gray-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                      title="Dismiss notification"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
                 ))
               )}
