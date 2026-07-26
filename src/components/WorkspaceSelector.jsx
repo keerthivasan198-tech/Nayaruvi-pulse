@@ -107,7 +107,10 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
         setIsCreating(false);
         setActiveWorkspaceId(newWs._id);
         setIsOpen(false);
-        fetchWorkspaces();
+        await fetchWorkspaces(auth.currentUser); // ✅ Pass user correctly
+      } else {
+        const err = await res.json();
+        console.error('Failed to create workspace:', err);
       }
     } catch (error) {
       console.error("Create workspace error:", error);
