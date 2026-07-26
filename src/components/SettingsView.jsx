@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, UserPlus, FolderOpen, Mail, CheckCircle2, ChevronRight, Settings as SettingsIcon, Plus, Check } from 'lucide-react';
 import { auth } from '../firebase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
 
 export default function SettingsView({ activeWorkspaceId }) {
   const [workspace, setWorkspace] = useState(null);

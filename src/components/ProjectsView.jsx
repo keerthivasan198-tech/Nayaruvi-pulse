@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FolderOpen, MoreVertical, Link, Plus, CheckCircle2, Shield, User } from 'lucide-react';
 import { auth } from '../firebase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
 
 export default function ProjectsView({ activeWorkspaceId }) {
   const [projects, setProjects] = useState([]);
