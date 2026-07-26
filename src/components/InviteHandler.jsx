@@ -108,10 +108,28 @@ export default function InviteHandler() {
     }
   };
 
-  // If we reach here and loading is true, we just show a spinner
   return (
     <div className="flex h-screen w-full items-center justify-center bg-[#DFD6AE]">
-      <div className="w-8 h-8 rounded-full border-4 border-[#274245] border-t-transparent animate-spin"></div>
+      {error ? (
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-500 text-2xl font-bold">!</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Invite Failed</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button 
+            onClick={() => navigate('/')}
+            className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full border-4 border-[#274245] border-t-transparent animate-spin mb-4"></div>
+          <p className="text-[#274245] font-medium animate-pulse">Joining project...</p>
+        </div>
+      )}
     </div>
   );
 }
