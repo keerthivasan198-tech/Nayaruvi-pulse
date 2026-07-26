@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { auth } from '../firebase';
-import { Users, FolderOpen, Shield, Mail, Activity, Calendar } from 'lucide-react';
+import { Users, FolderOpen, Shield, Mail, Activity, Calendar, User } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
 
