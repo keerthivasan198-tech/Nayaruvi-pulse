@@ -145,6 +145,7 @@ export default function ProjectsView({ activeWorkspaceId, activeProjectId, setAc
             .filter(proj => activeProjectId ? proj.id === activeProjectId : true)
             .map((proj, i, filteredProjects) => {
             const leader = isLeader(proj);
+            const isProjFounder = proj.members && Object.values(proj.members).some(m => m.uid === auth.currentUser?.uid && m.role === 'Founder');
             const memberCount = proj.members ? Object.keys(proj.members).length : 0;
             return (
               <div key={proj.id} className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-[#F4F0EA] transition-colors ${i !== filteredProjects.length - 1 ? 'border-b border-[#DDD5CC]' : ''}`}>
@@ -187,12 +188,14 @@ export default function ProjectsView({ activeWorkspaceId, activeProjectId, setAc
                       >
                         <User size={14} className="mr-2.5 text-[#7D7268]" /> Manage Roles
                       </button>
-                      <button 
-                        onClick={() => handleDeleteProject(proj.id)}
-                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center transition-colors"
-                      >
-                        <Trash2 size={14} className="mr-2.5" /> Delete Project
-                      </button>
+                      {isProjFounder && (
+                        <button 
+                          onClick={() => handleDeleteProject(proj.id)}
+                          className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center transition-colors"
+                        >
+                          <Trash2 size={14} className="mr-2.5" /> Delete Project
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

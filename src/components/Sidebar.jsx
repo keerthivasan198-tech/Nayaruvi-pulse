@@ -21,12 +21,13 @@ export default function Sidebar({
     <aside className={`${baseClasses} ${mobileClasses} ${translateClass}`}>
       {/* Brand Logo */}
       <div className="h-[72px] flex items-center px-6 cursor-pointer shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-[#DFD6AE] text-[#274245] flex items-center justify-center mr-3.5 shadow-md font-bold">
-          <CheckCircle2 size={20} strokeWidth={2.5} />
+        <div className="w-9 h-9 rounded-xl overflow-hidden bg-white flex items-center justify-center mr-3.5 shadow-md">
+          <img src="/logo.png" alt="Nayaruvi Logo" className="w-full h-full object-contain p-0.5" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+          <div style={{display: 'none'}} className="w-full h-full bg-[#DFD6AE] text-[#274245] flex items-center justify-center"><CheckCircle2 size={20} strokeWidth={2.5} /></div>
         </div>
         <div className="flex flex-col">
           <span className="text-2xl font-bold tracking-widest text-[#DFD6AE] leading-none font-heading uppercase">Nayaruvi</span>
-          <span className="text-[9px] font-semibold text-[#DFD6AE]/75 tracking-widest uppercase mt-1">Workspace</span>
+          <span className="text-[9px] font-bold text-[#DFD6AE]/90 tracking-widest uppercase mt-1">Pulse</span>
         </div>
       </div>
 

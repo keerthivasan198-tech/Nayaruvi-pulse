@@ -36,7 +36,11 @@ export default function LoginPage() {
       }
       handleRedirect();
     } catch (err) {
-      setError(err.message || `Failed to sign ${isSignUp ? 'up' : 'in'}. Please check your credentials.`);
+      if (err.message && err.message.includes('email-already-in-use')) {
+        setError("This email is already registered. Please click 'Sign in' below to access your account.");
+      } else {
+        setError(err.message || `Failed to sign ${isSignUp ? 'up' : 'in'}. Please check your credentials.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -63,11 +67,13 @@ export default function LoginPage() {
         <div className="absolute top-[40%] left-[60%] w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
 
         <div className="relative z-10 flex items-center">
-          <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center mr-3 shadow-lg shadow-primary/30">
-            <CheckCircle2 size={24} className="text-white" />
+          <div className="w-10 h-10 mr-3 shadow-lg shadow-primary/30 rounded-xl overflow-hidden bg-white flex items-center justify-center">
+            <img src="/logo.png" alt="Nayaruvi Logo" className="w-full h-full object-contain p-1" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+            <div style={{display: 'none'}} className="w-full h-full bg-primary text-white flex items-center justify-center"><CheckCircle2 size={24} /></div>
           </div>
           <div>
-            <h1 className="font-bold text-xl text-text-primary tracking-tight">Nayaruvi</h1>
+            <h1 className="font-bold text-xl text-text-primary tracking-tight uppercase font-heading">Nayaruvi</h1>
+            <span className="text-[10px] font-bold text-primary tracking-widest uppercase">Pulse</span>
           </div>
         </div>
 

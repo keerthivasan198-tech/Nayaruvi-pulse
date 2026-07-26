@@ -275,26 +275,31 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
           <div className="p-2">
             <div className="px-2 py-1 text-[11px] font-bold text-text-secondary uppercase tracking-wider">Switch Workspaces</div>
             <div className="max-h-[120px] overflow-y-auto custom-scrollbar">
-              {workspaces.map(ws => (
-                <div key={ws.id} className={`flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors ${activeWorkspaceId === ws.id ? 'bg-primary/5' : ''}`}>
-                  <button 
-                    onClick={() => { setActiveWorkspaceId(ws.id); setIsOpen(false); }}
-                    className={`flex-1 flex items-center text-sm font-medium ${activeWorkspaceId === ws.id ? 'text-primary font-bold' : 'text-text-primary'}`}
-                  >
-                    <div className="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center font-bold text-xs mr-3 shadow-sm shrink-0">
-                      {ws.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="truncate max-w-[150px] text-left">{ws.name}</span>
-                  </button>
-                  <button 
-                    onClick={(e) => handleDeleteWorkspace(ws.id, e)} 
-                    className="text-gray-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 transition-colors shrink-0" 
-                    title="Delete Workspace"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
+              {workspaces.map(ws => {
+                const isFounder = Array.isArray(ws.members) && ws.members.some(m => m.uid === auth.currentUser?.uid && m.role === 'Founder');
+                return (
+                  <div key={ws.id} className={`flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors ${activeWorkspaceId === ws.id ? 'bg-primary/5' : ''}`}>
+                    <button 
+                      onClick={() => { setActiveWorkspaceId(ws.id); setIsOpen(false); }}
+                      className={`flex-1 flex items-center text-sm font-medium ${activeWorkspaceId === ws.id ? 'text-primary font-bold' : 'text-text-primary'}`}
+                    >
+                      <div className="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center font-bold text-xs mr-3 shadow-sm shrink-0">
+                        {ws.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="truncate max-w-[150px] text-left">{ws.name}</span>
+                    </button>
+                    {isFounder && (
+                      <button 
+                        onClick={(e) => handleDeleteWorkspace(ws.id, e)} 
+                        className="text-gray-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 transition-colors shrink-0" 
+                        title="Delete Workspace"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             
             {isCreating ? (
