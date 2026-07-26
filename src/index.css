@@ -1,0 +1,121 @@
+@import "tailwindcss";
+@source ".";
+
+@theme {
+  --color-background: #DFD6AE;
+  --color-surface: #FAF7EC;
+  
+  --color-primary: #274245;
+  --color-primary-hover: #1C3235;
+  --color-primary-foreground: #DFD6AE;
+  
+  --color-success: #10B981;
+  --color-warning: #D97706;
+  --color-danger: #E11D48;
+  --color-info: #2563EB;
+  
+  --color-border: #D4C99E;
+  
+  --color-text-primary: #274245;
+  --color-text-secondary: #5C6E6F;
+
+  --radius-xl: 20px;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    image-rendering: -webkit-optimize-contrast;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: #DFD6AE;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(250, 247, 236, 0.6) 0px, transparent 60%),
+      radial-gradient(at 100% 100%, rgba(39, 66, 69, 0.08) 0px, transparent 50%);
+    color: #274245;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+/* Custom Utilities for Yellow Sapling Light Background & Dark Blue Accents */
+@layer utilities {
+  .shadow-sapling {
+    box-shadow: 0 4px 20px -2px rgba(39, 66, 69, 0.08), 0 1px 4px 0 rgba(0, 0, 0, 0.03);
+  }
+  .shadow-sapling-lg {
+    box-shadow: 0 12px 36px -4px rgba(39, 66, 69, 0.12), 0 2px 8px -1px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Light Cream Option Cards with Dark Blue Text */
+  .celestique-card, .sapling-card {
+    background-color: #FAF7EC;
+    color: #274245;
+    border: 1px solid #D4C99E;
+    box-shadow: 0 4px 20px -2px rgba(39, 66, 69, 0.06);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Dark Blue Selective Accents */
+  .bg-dark-blue {
+    background-color: #274245;
+    color: #FAF7EC;
+  }
+
+  .btn-matte-primary {
+    background-color: #274245;
+    color: #FAF7EC;
+    border: 1px solid #1C3235;
+    box-shadow: 0 2px 6px rgba(39, 66, 69, 0.15);
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-matte-primary:hover {
+    background-color: #1C3235;
+    box-shadow: 0 4px 10px rgba(39, 66, 69, 0.25);
+  }
+  .btn-matte-primary:active {
+    background-color: #142426;
+    transform: scale(0.98);
+  }
+
+  .btn-matte-secondary {
+    background-color: #E8E0BF;
+    color: #274245;
+    border: 1px solid #C9BD91;
+    box-shadow: 0 1px 4px rgba(39, 66, 69, 0.08);
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-matte-secondary:hover {
+    background-color: #DFD6B2;
+    box-shadow: 0 2px 6px rgba(39, 66, 69, 0.12);
+  }
+  .btn-matte-secondary:active {
+    background-color: #D6CB9F;
+    transform: scale(0.98);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #C9BD91;
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #274245;
+  }
+}

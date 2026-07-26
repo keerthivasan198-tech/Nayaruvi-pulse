@@ -1,0 +1,2966 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nayaruvi Pulse</title>
+
+  <!-- Tailwind CSS (CDN for development) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Firebase v10 CDN (modular compat build) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --glass-bg: rgba(15, 23, 42, 0.82);
+      --glass-border: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #020617;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--glass-border);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(99, 102, 241, 0.35);
+      background: rgba(30, 41, 59, 0.6);
+      transform: translateY(-2px);
+    }
+    .sidebar-item.active,
+    .mobile-nav-item.active {
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.18) 0%, transparent 100%);
+      border-left: 3px solid #6366f1;
+      color: #818cf8;
+    }
+    .mobile-nav-item.active {
+      border-left: none;
+      border-top: 2px solid #6366f1;
+      border-radius: 0;
+    }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .chat-scroll::-webkit-scrollbar { width: 8px; }
+    .chat-scroll::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 999px;
+    }
+    .kanban-column { min-height: 380px; }
+    .toast {
+      transform: translateY(100px);
+      transition: transform 0.3s ease;
+    }
+    .toast.show { transform: translateY(0); }
+    .notification-dot {
+      width: 8px; height: 8px;
+      border-radius: 999px;
+      background: #6366f1;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.8);
+    }
+    .calendar-day { min-height: 120px; }
+    .calendar-day.today {
+      outline: 1px solid rgba(99, 102, 241, 0.5);
+      box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.12);
+    }
+    .calendar-day.selected {
+      border-color: rgba(99, 102, 241, 0.65);
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .calendar-event {
+      font-size: 10px; line-height: 1.2;
+      padding: 4px 8px; border-radius: 999px;
+      overflow: hidden; white-space: nowrap;
+      text-overflow: ellipsis; border: 1px solid transparent;
+    }
+    .calendar-event.task { background: rgba(99,102,241,0.12); color:#a5b4fc; border-color:rgba(99,102,241,0.18); }
+    .calendar-event.meeting { background: rgba(34,197,94,0.12); color:#86efac; border-color:rgba(34,197,94,0.18); }
+    .calendar-event.milestone { background: rgba(245,158,11,0.12); color:#fcd34d; border-color:rgba(245,158,11,0.18); }
+    .calendar-event.overdue { background: rgba(244,63,94,0.12); color:#fda4af; border-color:rgba(244,63,94,0.18); }
+    .sidebar-mobile-open { transform: translateX(0) !important; }
+    @media (max-width: 767px) {
+      #sidebar {
+        position: fixed; inset: 0 auto 0 0;
+        width: 84%; max-width: 320px; height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.28s ease; z-index: 90;
+      }
+    }
+    .btn-danger { background:#ef4444; color:white; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .btn-danger:hover { background:#dc2626; }
+
+    /* FIX: Login button loading state */
+    .btn-loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; }
+    .login-spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="antialiased">
+
+<!-- LOGIN OVERLAY -->
+<div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 px-4">
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-3xl"></div>
+  </div>
+  <div class="w-full max-w-md space-y-8 glass p-8 rounded-3xl shadow-2xl relative z-10 border border-white/5">
+    <div class="text-center">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/20 mb-4">
+        <i data-lucide="zap" class="w-8 h-8 text-white"></i>
+      </div>
+      <h1 class="text-3xl font-bold tracking-tight">Nayaruvi Pulse<span class="text-indigo-400">OS</span></h1>
+      <p class="mt-2 text-sm text-slate-400">Enterprise Team Management Console</p>
+    </div>
+
+    <!-- FIX: Added autocomplete attributes, changed onsubmit to addEventListener in JS -->
+    <div class="mt-8 space-y-6">
+      <div class="space-y-4">
+        <div>
+          <label for="login-email" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Username</label>
+          <input
+            id="login-email"
+            type="text"
+            required
+            autocomplete="username"
+            class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
+            placeholder="Enter your username"
+          />
+        </div>
+        <div>
+          <label for="login-password" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Password</label>
+          <input
+            id="login-password"
+            type="password"
+            required
+            autocomplete="current-password"
+            class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
+            placeholder="••••••••"
+          />
+        </div>
+      </div>
+      <div id="login-error" class="hidden text-red-400 text-xs text-center font-medium bg-red-400/10 py-2 rounded-lg border border-red-400/20"></div>
+      <!-- FIX: Button is now type="button" and handled via JS click to avoid form submission race conditions -->
+      <button
+        id="login-btn"
+        type="button"
+        class="group relative w-full flex justify-center items-center py-3.5 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-lg shadow-indigo-500/25"
+      >
+        Sign in to Workspace
+      </button>
+    </div>
+    <div class="pt-4 text-center">
+      <p class="text-xs text-slate-500">Contact Lead for credentials</p>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE SIDEBAR BACKDROP -->
+<div id="sidebar-backdrop" class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[85]" onclick="App.closeSidebar()"></div>
+
+<!-- APP LAYOUT -->
+<div id="app-container" class="hidden min-h-screen flex flex-col md:flex-row bg-[#020617]">
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="hidden md:flex w-full md:w-72 glass md:h-screen sticky top-0 z-50 flex-col transition-all duration-300">
+    <div class="p-6 flex items-center justify-between gap-3 border-b border-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+          <i data-lucide="layers" class="w-5 h-5 text-white"></i>
+        </div>
+        <span class="font-bold text-lg tracking-tight">Nayaruvi Pulse</span>
+      </div>
+      <button class="md:hidden text-slate-400 hover:text-white" onclick="App.closeSidebar()">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <nav class="flex-1 px-3 space-y-1 py-4 overflow-y-auto scrollbar-hide">
+      <button data-nav="projects" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="folders" class="w-4 h-4"></i> Projects
+      </button>
+      <button data-nav="overview" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="layout-grid" class="w-4 h-4"></i> Overview
+      </button>
+      <button data-nav="summary" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="clipboard-list" class="w-4 h-4"></i> Project Summary
+      </button>
+      <button data-nav="tasks" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="check-square" class="w-4 h-4"></i> Tasks Board
+      </button>
+      <button data-nav="mywork" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="briefcase" class="w-4 h-4"></i> My Work
+      </button>
+      <button data-nav="feed" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="rss" class="w-4 h-4"></i> Team Feed
+      </button>
+      <button data-nav="chat" class="sidebar-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <span class="flex items-center gap-3"><i data-lucide="messages-square" class="w-4 h-4"></i> Team Chat</span>
+        <span id="chat-unread-badge" class="hidden text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold">0</span>
+      </button>
+      <button data-nav="notifications" class="sidebar-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <span class="flex items-center gap-3"><i data-lucide="bell" class="w-4 h-4"></i> Notifications</span>
+        <span id="notif-unread-badge" class="hidden text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold">0</span>
+      </button>
+      <button data-nav="milestones" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="flag" class="w-4 h-4"></i> Milestones
+      </button>
+      <button data-nav="attendance" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/5">
+        <i data-lucide="user-check" class="w-4 h-4"></i> Attendance
+      </button>
+      <button data-nav="calendar" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/5">
+        <i data-lucide="calendar-days" class="w-4 h-4"></i> Deadlines
+      </button>
+      <div class="my-4 border-t border-white/5 mx-4"></div>
+      <button data-nav="team" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="users" class="w-4 h-4"></i> Team Registry
+      </button>
+      <button data-nav="docs" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="file-text" class="w-4 h-4"></i> Knowledge Base
+      </button>
+      <button data-nav="meetings" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-white/5">
+        <i data-lucide="calendar" class="w-4 h-4"></i> Meetings
+      </button>
+    </nav>
+    <div class="p-4 border-t border-white/5">
+      <button id="btn-logout" class="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-red-500/10 transition-colors">
+        Logout <i data-lucide="log-out" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 flex flex-col relative min-h-screen pb-20 md:pb-0">
+    <header class="h-20 glass sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between border-b border-white/5">
+      <div class="flex items-center gap-3 flex-1">
+        <button class="md:hidden" onclick="App.toggleSidebar()">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <div class="flex-1 max-w-xl">
+          <div class="relative group">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors"></i>
+            <input id="global-search" type="text" autocomplete="off" class="w-full bg-slate-900/40 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" placeholder="Search for anything...">
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 ml-4">
+        <div class="text-right hidden sm:block">
+          <p id="header-user-name" class="text-sm font-semibold">User</p>
+          <p id="header-user-role" class="text-[10px] uppercase tracking-tighter text-slate-500 font-bold">Role</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 p-[2px]">
+          <div class="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
+            <span id="header-user-initial" class="text-sm font-bold">U</span>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div id="viewport" class="p-4 md:p-8 space-y-8 max-w-7xl mx-auto w-full"></div>
+  </main>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<div id="mobile-bottom-nav" class="hidden md:hidden fixed bottom-0 inset-x-0 z-[70] glass border-t border-white/10">
+  <div class="grid grid-cols-5">
+    <button data-nav="overview" class="mobile-nav-item active flex flex-col items-center justify-center py-3 text-[10px] text-slate-300 gap-1">
+      <i data-lucide="layout-grid" class="w-4 h-4"></i><span>Overview</span>
+    </button>
+    <button data-nav="summary" class="mobile-nav-item flex flex-col items-center justify-center py-3 text-[10px] text-slate-300 gap-1">
+      <i data-lucide="clipboard-list" class="w-4 h-4"></i><span>Summary</span>
+    </button>
+    <button data-nav="tasks" class="mobile-nav-item flex flex-col items-center justify-center py-3 text-[10px] text-slate-300 gap-1">
+      <i data-lucide="check-square" class="w-4 h-4"></i><span>Tasks</span>
+    </button>
+    <button data-nav="calendar" class="mobile-nav-item flex flex-col items-center justify-center py-3 text-[10px] text-slate-300 gap-1">
+      <i data-lucide="calendar-days" class="w-4 h-4"></i><span>Calendar</span>
+    </button>
+    <button data-nav="chat" class="mobile-nav-item flex flex-col items-center justify-center py-3 text-[10px] text-slate-300 gap-1 relative">
+      <i data-lucide="messages-square" class="w-4 h-4"></i><span>Chat</span>
+      <span id="mobile-chat-unread-badge" class="hidden absolute top-2 right-6 text-[9px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-bold">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- MODAL CONTAINER -->
+<!-- FIX: Added onclick on overlay background to close modal -->
+<div id="modal-overlay" class="fixed inset-0 z-[110] hidden items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onclick="App.handleModalOverlayClick(event)">
+  <div id="modal-content" class="w-full max-w-lg glass rounded-3xl overflow-hidden shadow-2xl scale-95 transition-all opacity-0 max-h-[90vh] overflow-y-auto"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl glass border-indigo-500/50 shadow-xl shadow-indigo-500/10 flex items-center gap-3 toast pointer-events-none">
+  <i data-lucide="info" class="w-4 h-4 text-indigo-400"></i>
+  <span id="toast-message" class="text-sm font-medium">Notification message</span>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE INITIALIZATION — pulse-404ba (original project with valid credentials)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyD6OBbl8Rd0EE79wJXkWPS7oxFU4n0KMiA",
+  authDomain: "pulse-404ba.firebaseapp.com",
+  databaseURL: "https://pulse-404ba-default-rtdb.firebaseio.com",
+  projectId: "pulse-404ba",
+  storageBucket: "pulse-404ba.firebasestorage.app",
+  messagingSenderId: "724640820343",
+  appId: "1:724640820343:web:40549536b27ab5ef8b6a72"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const rtdb = firebase.database(); // Realtime Database (used for username-based auth lookup)
+
+// Offline persistence for Firestore
+try {
+  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+} catch(e) {}
+db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+  if (err.code === 'failed-precondition') console.warn('Persistence: multiple tabs open');
+  else if (err.code === 'unimplemented') console.warn('Persistence unavailable');
+});
+
+// ============================================================
+// USERNAME / PASSWORD AUTH — stored in Firestore "users" collection
+// Fields required per user doc: { username, password, name, role, ... }
+// Default seeded user: manikandan / 12345678
+// FALLBACK: if Firestore is unreachable, hardcoded local credentials work too
+// ============================================================
+
+// Hardcoded fallback users (works even if Firestore rules block access)
+const LOCAL_USERS = {
+  "manikandan": { id: "manikandan_uid", username: "manikandan", password: "12345678", name: "Manikandan", role: "lead", email: "manikandan@nayaruvi.com", createdAt: new Date().toISOString() }
+};
+
+async function seedDefaultUser() {
+  try {
+    const snap = await db.collection("users").where("username", "==", "manikandan").limit(1).get();
+    if (snap.empty) {
+      await db.collection("users").doc("manikandan_uid").set(LOCAL_USERS["manikandan"]);
+      console.log("Default user seeded: manikandan");
+    }
+  } catch(e) { console.warn("Seed user skipped (Firestore rules may need update):", e.message); }
+}
+
+// Lightweight session stored in sessionStorage
+const SESSION_KEY = "nayaruvi_session_uid";
+const SESSION_USER_KEY = "nayaruvi_session_user";
+
+async function loginWithUsername(username, password) {
+  const uname = username.trim().toLowerCase();
+
+  // 1. Try Firestore first
+  try {
+    const snap = await db.collection("users")
+      .where("username", "==", uname)
+      .limit(1).get();
+    if (!snap.empty) {
+      const userDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      if (userDoc.password !== password) throw new Error("Incorrect password.");
+      sessionStorage.setItem(SESSION_KEY, userDoc.id);
+      sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(userDoc));
+      return userDoc;
+    }
+    // If Firestore returned empty, fall through to local check
+  } catch(e) {
+    // Firestore unavailable — fall through to local
+    console.warn("Firestore login fallback:", e.message);
+  }
+
+  // 2. Fallback: check LOCAL_USERS (hardcoded credentials)
+  const local = LOCAL_USERS[uname];
+  if (!local) throw new Error("Username not found.");
+  if (local.password !== password) throw new Error("Incorrect password.");
+
+  // Try to seed the user into Firestore for future use
+  try {
+    await db.collection("users").doc(local.id).set(local);
+  } catch(e) {}
+
+  sessionStorage.setItem(SESSION_KEY, local.id);
+  sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(local));
+  return local;
+}
+
+function logoutSession() {
+  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_USER_KEY);
+}
+
+async function getSessionUser() {
+  const uid = sessionStorage.getItem(SESSION_KEY);
+  if (!uid) return null;
+  // Try cached user first (works offline)
+  const cached = sessionStorage.getItem(SESSION_USER_KEY);
+  if (cached) {
+    try { return JSON.parse(cached); } catch(e) {}
+  }
+  try {
+    const snap = await db.collection("users").doc(uid).get();
+    if (!snap.exists) return null;
+    return { id: snap.id, ...snap.data() };
+  } catch(e) { return null; }
+}
+
+// ============================================================
+// TOAST HELPER
+// ============================================================
+let toastTimer = null;
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  const text = document.getElementById("toast-message");
+  if (!toast || !text) return;
+  text.textContent = String(message ?? "");
+  toast.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+// ============================================================
+// HTML ESCAPE HELPER (FIX: prevent XSS in innerHTML)
+// ============================================================
+function esc(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ============================================================
+// FIRESTORE HELPERS
+// ============================================================
+async function fsGet(collectionName) {
+  const snap = await db.collection(collectionName).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function fsGetWhere(collectionName, field, op, value) {
+  const snap = await db.collection(collectionName).where(field, op, value).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function fsAdd(collectionName, data) {
+  const payload = { ...data, createdAt: data.createdAt || new Date().toISOString() };
+  const ref = await db.collection(collectionName).add(payload);
+  return { id: ref.id, ...payload };
+}
+
+async function fsSet(collectionName, docId, data) {
+  await db.collection(collectionName).doc(docId).set(data, { merge: true });
+  return { id: docId, ...data };
+}
+
+async function fsUpdate(collectionName, docId, data) {
+  await db.collection(collectionName).doc(docId).update(data);
+}
+
+async function fsDelete(collectionName, docId) {
+  await db.collection(collectionName).doc(docId).delete();
+}
+
+async function fsGetDoc(collectionName, docId) {
+  const snap = await db.collection(collectionName).doc(docId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const PROJECT_STATUS = Object.freeze({
+  ACTIVE: "active", PAUSED: "paused", COMPLETED: "completed", ARCHIVED: "archived"
+});
+
+const PROJECT_LIFECYCLE = [
+  "Upstream","Proposal","PO Received","Kickoff","Planning",
+  "Design","Development","Testing","Deployment","Completed","Closed / Archived"
+];
+
+let state = {
+  currentUser: null,
+  projects: [],
+  activeProjectId: null,
+  users: [],
+  tasks: [],
+  feed: [],
+  milestones: [],
+  docs: [],
+  meetings: [],
+  chats: [],
+  notifications: [],
+  attendance: [],
+  deadlines: [],
+  aiSummary: { text: "", generatedAt: "" },
+  projectSummary: {
+    projectName: "Nayaruvi Pulse",
+    projectOwner: "Manikandan",
+    currentPhase: "Planning",
+    targetRelease: "",
+    overallStatus: "on-track",
+    vision: "",
+    weeklyFocus: "",
+    launchGoal: "",
+    risks: [],
+    roadmap: [
+      { id:"r1", phase:"Planning", status:"done", start:"", end:"", description:"Requirement gathering and project planning" },
+      { id:"r2", phase:"Design", status:"doing", start:"", end:"", description:"UI/UX design and workflow setup" },
+      { id:"r3", phase:"Development", status:"todo", start:"", end:"", description:"Frontend and backend development" },
+      { id:"r4", phase:"Testing", status:"todo", start:"", end:"", description:"Bug fixing and quality validation" },
+      { id:"r5", phase:"Deployment", status:"todo", start:"", end:"", description:"Production release and monitoring" }
+    ]
+  },
+  activeView: "projects",
+  chatDraft: "",
+  calendarMonth: new Date().getMonth(),
+  calendarYear: new Date().getFullYear(),
+  selectedCalendarDate: (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  })()
+};
+
+// Realtime unsubscribe handles
+let _unsubChats = null;
+let _unsubNotifs = null;
+let _unsubTasks = null;
+
+// ============================================================
+// LOAD ALL COLLECTIONS FROM FIRESTORE
+// ============================================================
+async function safeGet(collectionName) {
+  try { return await fsGet(collectionName); }
+  catch(e) { console.warn(`Load ${collectionName} failed:`, e.message); return []; }
+}
+
+async function loadFromFirestore() {
+  const [projects, users, tasks, feed, milestones, docs, meetings, chats, notifications, attendance, deadlines] = await Promise.all([
+    safeGet("projects"),
+    safeGet("users"),
+    safeGet("tasks"),
+    safeGet("feed"),
+    safeGet("milestones"),
+    safeGet("docs"),
+    safeGet("meetings"),
+    safeGet("chats"),
+    safeGet("notifications"),
+    safeGet("attendance"),
+    safeGet("deadlines")
+  ]);
+  state.projects = projects;
+  // Ensure current user always appears in users list even if Firestore empty
+  const cu = state.currentUser;
+  if (cu && !users.find(u => u.id === cu.id)) users.push(cu);
+  state.users = users;
+  state.tasks = tasks;
+  state.feed = feed;
+  state.milestones = milestones;
+  state.docs = docs;
+  state.meetings = meetings;
+  state.chats = chats;
+  state.notifications = notifications;
+  state.attendance = attendance;
+  state.deadlines = deadlines;
+}
+
+// ============================================================
+// REALTIME LISTENERS
+// ============================================================
+function startRealtimeListeners() {
+  if (!state.currentUser || !state.activeProjectId) return;
+
+  if (_unsubChats) _unsubChats();
+  if (_unsubNotifs) _unsubNotifs();
+  if (_unsubTasks) _unsubTasks();
+
+  _unsubChats = db.collection("chats")
+    .where("projectId", "==", state.activeProjectId)
+    .orderBy("createdAt", "asc")
+    .onSnapshot(snap => {
+      state.chats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      App.updateUnreadBadges();
+      if (state.activeView === "chat") App.render("chat");
+    }, err => console.error("Chat listener error:", err));
+
+  _unsubNotifs = db.collection("notifications")
+    .where("projectId", "==", state.activeProjectId)
+    .orderBy("createdAt", "desc")
+    .onSnapshot(snap => {
+      state.notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      App.updateUnreadBadges();
+      if (state.activeView === "notifications") App.render("notifications");
+    }, err => console.error("Notif listener error:", err));
+
+  _unsubTasks = db.collection("tasks")
+    .where("projectId", "==", state.activeProjectId)
+    .onSnapshot(snap => {
+      state.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (state.activeView === "tasks" || state.activeView === "overview") App.render(state.activeView);
+    }, err => console.error("Tasks listener error:", err));
+}
+
+// ============================================================
+// APP OBJECT
+// ============================================================
+const App = {
+
+  toLocalDateString(dateInput) {
+    const d = new Date(dateInput);
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  },
+
+  // ──────────────────────────────────────────────
+  // INIT
+  // ──────────────────────────────────────────────
+  async init() {
+    this.bindLoginButton();
+
+    // Seed default user on first run (manikandan / 12345678)
+    await seedDefaultUser();
+
+    // Check for existing session
+    try {
+      const sessionUser = await getSessionUser();
+      if (sessionUser) {
+        state.currentUser = sessionUser;
+        await loadFromFirestore();
+        this.loadProjectSummary();
+        this.loadActiveProject();
+        this.showApp();
+        this.bindEvents();
+        lucide.createIcons();
+        startRealtimeListeners();
+      } else {
+        this.showLogin();
+        lucide.createIcons();
+      }
+    } catch(err) {
+      console.error("Session load error:", err);
+      this.showLogin("Error loading session. Please log in.");
+      lucide.createIcons();
+    }
+  },
+
+  // FIX: Replaced onsubmit form approach with direct button click listener
+  // This fixes the "button not going inside" issue on mobile/touch devices
+  bindLoginButton() {
+    const btn = document.getElementById("login-btn");
+    const emailEl = document.getElementById("login-email");
+    const passwordEl = document.getElementById("login-password");
+    const errBox = document.getElementById("login-error");
+
+    // Also allow Enter key on password field
+    passwordEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); this.doLogin(); }
+    });
+    emailEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); passwordEl.focus(); }
+    });
+
+    btn.addEventListener("click", () => this.doLogin());
+  },
+
+  async doLogin() {
+    const usernameEl = document.getElementById("login-email");
+    const passwordEl = document.getElementById("login-password");
+    const btn = document.getElementById("login-btn");
+    const errBox = document.getElementById("login-error");
+
+    const username = usernameEl.value.trim();
+    const password = passwordEl.value;
+
+    errBox.classList.add("hidden");
+    if (!username) {
+      errBox.textContent = "Please enter your username.";
+      errBox.classList.remove("hidden");
+      usernameEl.focus();
+      return;
+    }
+    if (!password) {
+      errBox.textContent = "Please enter your password.";
+      errBox.classList.remove("hidden");
+      passwordEl.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.classList.add("btn-loading");
+    btn.innerHTML = '<span class="login-spinner"></span>Signing in...';
+
+    try {
+      const userDoc = await loginWithUsername(username, password);
+      state.currentUser = userDoc;
+      await loadFromFirestore();
+      this.loadProjectSummary();
+      this.loadActiveProject();
+      this.showApp();
+      this.bindEvents();
+      lucide.createIcons();
+      startRealtimeListeners();
+    } catch (err) {
+      console.error("Login error:", err);
+      const msg = err.message || "Invalid credentials. Access Denied.";
+      errBox.textContent = msg;
+      errBox.classList.remove("hidden");
+      showToast(msg);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove("btn-loading");
+      btn.innerHTML = 'Sign in to Workspace';
+    }
+  },
+
+  showLogin(errorMsg = "") {
+    document.getElementById("login-screen").classList.remove("hidden");
+    document.getElementById("app-container").classList.add("hidden");
+    document.getElementById("mobile-bottom-nav").classList.add("hidden");
+    // Clear password on logout for security
+    const pwEl = document.getElementById("login-password");
+    if (pwEl) pwEl.value = "";
+    if (errorMsg) {
+      const errBox = document.getElementById("login-error");
+      if (errBox) {
+        errBox.textContent = errorMsg;
+        errBox.classList.remove("hidden");
+      }
+    }
+  },
+
+  showApp() {
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("app-container").classList.remove("hidden");
+    document.getElementById("mobile-bottom-nav").classList.remove("hidden");
+    this.updateHeader();
+    this.updateUnreadBadges();
+    this.render(state.activeView);
+  },
+
+  bindEvents() {
+    document.querySelectorAll("[data-nav]").forEach(btn => {
+      btn.onclick = async () => { await this.navigate(btn.dataset.nav); };
+    });
+
+    const searchBox = document.getElementById("global-search");
+    if (searchBox) {
+      let t = null, lastQ = null;
+      searchBox.oninput = (e) => {
+        const v = String(e.target?.value || "").toLowerCase();
+        if (v === lastQ) return;
+        lastQ = v;
+        if (t) clearTimeout(t);
+        t = setTimeout(() => this.render(state.activeView, v), 300);
+      };
+    }
+
+    const logoutBtn = document.getElementById("btn-logout");
+    if (logoutBtn) {
+      logoutBtn.onclick = async () => {
+        if (_unsubChats) _unsubChats();
+        if (_unsubNotifs) _unsubNotifs();
+        if (_unsubTasks) _unsubTasks();
+        logoutSession();
+        state.currentUser = null;
+        state.activeProjectId = null;
+        localStorage.removeItem("nayaruviActiveProjectId");
+        this.showLogin();
+      };
+    }
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth >= 768) this.closeSidebar();
+    });
+  },
+
+  // ──────────────────────────────────────────────
+  // NAVIGATION
+  // ──────────────────────────────────────────────
+  async navigate(view) {
+    if (!state.currentUser) { this.showLogin(); return; }
+    document.querySelectorAll(".sidebar-item, .mobile-nav-item").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(`[data-nav="${view}"]`).forEach(b => b.classList.add("active"));
+    state.activeView = view;
+
+    try {
+      await loadFromFirestore();
+      this.render(view);
+      if (view === "chat") await this.markChatSeen();
+      this.updateHeader();
+    } catch (err) {
+      console.error(err);
+      this.notify(err?.message || "Navigation failed");
+    }
+    this.closeSidebar();
+  },
+
+  // ──────────────────────────────────────────────
+  // PROJECT HELPERS
+  // ──────────────────────────────────────────────
+  loadProjectSummary() {
+    try {
+      const saved = localStorage.getItem("nayaruviProjectSummary");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        state.projectSummary = {
+          ...state.projectSummary, ...parsed,
+          roadmap: Array.isArray(parsed.roadmap) ? parsed.roadmap : state.projectSummary.roadmap,
+          risks: Array.isArray(parsed.risks) ? parsed.risks : state.projectSummary.risks
+        };
+      }
+    } catch(e) {}
+  },
+
+  saveProjectSummary() {
+    try { localStorage.setItem("nayaruviProjectSummary", JSON.stringify(state.projectSummary)); } catch(e) {}
+  },
+
+  loadActiveProject() {
+    const saved = localStorage.getItem("nayaruviActiveProjectId");
+    if (saved) state.activeProjectId = saved;
+  },
+
+  getActiveProject() { return state.projects.find(p => p.id === state.activeProjectId) || null; },
+  getProjectById(id) { return state.projects.find(p => p.id === id) || null; },
+  isLead() { return state.currentUser?.role === "lead"; },
+
+  canModify(item, assigneeKey = "assigneeId") {
+    const isLead = this.isLead();
+    const isOwner = item?.creatorId === state.currentUser?.id || item?.userId === state.currentUser?.id;
+    const isAssignee = item?.[assigneeKey] === state.currentUser?.id;
+    return !!(isLead || isOwner || isAssignee);
+  },
+
+  canManageProjectMembers(project) {
+    if (!project || !state.currentUser) return false;
+    return this.isLead() || project.ownerId === state.currentUser.id;
+  },
+
+  getMyProjects() {
+    if (!state.currentUser) return [];
+    if (this.isLead()) return state.projects;
+    return state.projects.filter(p => Array.isArray(p.memberIds) && p.memberIds.includes(state.currentUser.id));
+  },
+
+  getProjectTasks() { return state.tasks.filter(t => t.projectId === state.activeProjectId); },
+  getProjectFeed() { return state.feed.filter(f => f.projectId === state.activeProjectId); },
+  getProjectMilestones() { return state.milestones.filter(m => m.projectId === state.activeProjectId); },
+  getProjectDocs() { return state.docs.filter(d => d.projectId === state.activeProjectId); },
+  getProjectMeetings() { return state.meetings.filter(m => m.projectId === state.activeProjectId); },
+  getProjectDeadlines() { return state.deadlines.filter(d => d.projectId === state.activeProjectId); },
+  getProjectChats() { return state.chats.filter(c => c.projectId === state.activeProjectId); },
+
+  ensureProjectSelected() {
+    if (!state.activeProjectId) {
+      this.notify("Please select a project first");
+      this.render("projects");
+      return false;
+    }
+    return true;
+  },
+
+  openProject(projectId) {
+    state.activeProjectId = projectId;
+    localStorage.setItem("nayaruviActiveProjectId", projectId);
+    state.activeView = "overview";
+    startRealtimeListeners();
+    this.render("overview");
+    this.updateHeader();
+    this.notify("Project opened");
+  },
+
+  // ──────────────────────────────────────────────
+  // PROJECTS CRUD
+  // ──────────────────────────────────────────────
+  async createProject(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    if (!this.isLead()) { if (submitBtn) submitBtn.disabled = false; return this.notify("Only lead can create projects"); }
+
+    const fd = new FormData(e.target);
+    const memberIds = fd.getAll("memberIds");
+    const name = String(fd.get("name") || "").trim();
+    const code = String(fd.get("code") || "").trim();
+    const description = String(fd.get("description") || "").trim();
+    if (!name || !code) { if (submitBtn) submitBtn.disabled = false; return this.notify("Name and code required"); }
+
+    try {
+      await db.collection("projects").add({
+        name, code, description,
+        ownerId: state.currentUser.id,
+        memberIds: [...new Set([state.currentUser.id, ...memberIds])],
+        status: PROJECT_STATUS.ACTIVE,
+        lifecycleStage: "Upstream",
+        createdAt: new Date().toISOString()
+      });
+      await loadFromFirestore();
+      this.closeModal();
+      this.render("projects");
+      this.notify("Project created");
+    } catch (err) { console.error(err); this.notify(err.message || "Create failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async updateProject(e, projectId) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    const project = this.getProjectById(projectId);
+    if (!project || !this.canManageProjectMembers(project)) {
+      if (submitBtn) submitBtn.disabled = false;
+      return this.notify("Only lead or owner can edit");
+    }
+    const fd = new FormData(e.target);
+    const name = String(fd.get("name") || "").trim();
+    const code = String(fd.get("code") || "").trim();
+    if (!name || !code) { if (submitBtn) submitBtn.disabled = false; return this.notify("Name and code required"); }
+    try {
+      await fsUpdate("projects", projectId, {
+        name, code,
+        description: fd.get("description") || "",
+        status: fd.get("status") || PROJECT_STATUS.ACTIVE
+      });
+      await loadFromFirestore();
+      this.closeModal();
+      this.render("projects");
+      this.notify("Project updated");
+    } catch (err) { console.error(err); this.notify(err.message || "Update failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteProject(projectId) {
+    const project = this.getProjectById(projectId);
+    if (!project || !this.canManageProjectMembers(project)) return this.notify("Only lead or owner can delete");
+    if (!confirm(`Delete "${project.name}"? All related data will be removed.`)) return;
+    try {
+      await fsDelete("projects", projectId);
+      for (const col of ["tasks","feed","milestones","meetings","chats","notifications","attendance","deadlines","docs"]) {
+        const items = await fsGetWhere(col, "projectId", "==", projectId);
+        for (const item of items) await fsDelete(col, item.id);
+      }
+      if (state.activeProjectId === projectId) {
+        state.activeProjectId = null;
+        localStorage.removeItem("nayaruviActiveProjectId");
+      }
+      await loadFromFirestore();
+      this.render("projects");
+      this.notify("Project deleted");
+    } catch (err) { console.error(err); this.notify(err.message || "Delete failed"); }
+  },
+
+  async addProjectMember(projectId, userId) {
+    const project = this.getProjectById(projectId);
+    if (!project) return this.notify("Project not found");
+    const memberIds = [...new Set([...(project.memberIds || []), userId])];
+    try {
+      await fsUpdate("projects", projectId, { memberIds });
+      await loadFromFirestore();
+      this.openManageMembersModal(projectId);
+      this.notify("Member added");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async removeProjectMember(projectId, userId) {
+    const project = this.getProjectById(projectId);
+    if (!project) return this.notify("Project not found");
+    const memberIds = (project.memberIds || []).filter(id => id !== userId);
+    try {
+      await fsUpdate("projects", projectId, { memberIds });
+      await loadFromFirestore();
+      this.openManageMembersModal(projectId);
+      this.notify("Member removed");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async moveProjectStage(e, projectId, nextStage) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    const project = this.getProjectById(projectId);
+    if (!project) { if (submitBtn) submitBtn.disabled = false; return this.notify("Project not found"); }
+    const fd = new FormData(e.target);
+    const workflowData = {
+      proposalDocument: fd.get("proposalDocument") || "",
+      estimatedBudget: fd.get("estimatedBudget") || "",
+      poNumber: fd.get("poNumber") || "",
+      customerConfirmation: fd.get("customerConfirmation") === "on",
+      kickoffDate: fd.get("kickoffDate") || "",
+      scopeSignoff: fd.get("scopeSignoff") === "on",
+      projectPlanApproved: fd.get("projectPlanApproved") === "on",
+      resourceAllocationDone: fd.get("resourceAllocationDone") === "on",
+      designApproved: fd.get("designApproved") === "on",
+      devComplete: fd.get("devComplete") === "on",
+      qaSignoff: fd.get("qaSignoff") === "on",
+      deploymentDate: fd.get("deploymentDate") || "",
+      handoverNotes: fd.get("handoverNotes") || "",
+      closureNotes: fd.get("closureNotes") || "",
+      lessonsLearned: fd.get("lessonsLearned") || ""
+    };
+    try {
+      await fsUpdate("projects", projectId, {
+        lifecycleStage: nextStage,
+        stageUpdatedAt: new Date().toISOString(),
+        workflowData,
+        transitionNote: fd.get("note") || ""
+      });
+      await loadFromFirestore();
+      this.closeModal();
+      this.render("projects");
+      this.notify(`Moved to ${nextStage}`);
+    } catch (err) { console.error(err); this.notify(err.message || "Stage transition failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  // ──────────────────────────────────────────────
+  // TASKS CRUD
+  // ──────────────────────────────────────────────
+  async createTask(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    if (!state.activeProjectId) { if (submitBtn) submitBtn.disabled = false; return this.notify("Open a project first"); }
+
+    const fd = new FormData(e.target);
+    const title = String(fd.get("title") || "").trim();
+    const module = String(fd.get("module") || "").trim();
+    const assigneeId = String(fd.get("assigneeId") || "").trim();
+    const status = String(fd.get("status") || "todo").trim();
+    const deadline = String(fd.get("deadline") || "").trim();
+    if (!title || !module || !assigneeId) { if (submitBtn) submitBtn.disabled = false; return this.notify("Fill all required fields"); }
+
+    try {
+      await db.collection("tasks").add({
+        projectId: state.activeProjectId,
+        title,
+        priority: fd.get("priority") || "medium",
+        module, assigneeId, status,
+        deadline: deadline || "",
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString()
+      });
+      await this.createNotification(assigneeId, "New Task Assigned", `Assigned: ${title}${deadline ? ` • Due: ${this.formatDateTime(deadline)}` : ""}`);
+      this.closeModal();
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Task created");
+    } catch (err) { console.error(err); this.notify(err.message || "Task creation failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async moveTask(id, newStatus) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task || !this.canModify(task)) return this.notify("Access Denied");
+    try {
+      await fsUpdate("tasks", id, { status: newStatus });
+      await this.createNotification(task.assigneeId, "Task Updated", `${task.title} → ${newStatus}`);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify(`Moved to ${newStatus}`);
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async handleDrop(e, status) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain");
+    const task = state.tasks.find(t => t.id === id);
+    if (!task || !this.canModify(task)) return this.notify("Access Denied");
+    try {
+      await fsUpdate("tasks", id, { status });
+      await this.createNotification(task.assigneeId, "Task Updated", `${task.title} → ${status}`);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify(`Status: ${status}`);
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async deleteTask(id) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!this.canModify(task)) return this.notify("Unauthorized");
+    if (!confirm("Delete this task?")) return;
+    try {
+      await fsDelete("tasks", id);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Task deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // NOTIFICATIONS
+  // ──────────────────────────────────────────────
+  async createNotification(userId, title, message) {
+    try {
+      await db.collection("notifications").add({
+        projectId: state.activeProjectId || "",
+        userId, title, message,
+        read: false,
+        deletedBy: [],
+        creatorId: state.currentUser?.id || "",
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) { console.error("Notif create failed:", err); }
+  },
+
+  async createBroadcastNotification(title, message) {
+    await this.createNotification("all", title, message);
+  },
+
+  async markNotificationRead(id) {
+    try {
+      await fsUpdate("notifications", id, { read: true });
+      await loadFromFirestore();
+      this.notify("Marked as read");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async markAllNotificationsRead() {
+    const unread = this.getMyUnreadNotifications();
+    for (const n of unread) {
+      try { await fsUpdate("notifications", n.id, { read: true }); } catch(e) {}
+    }
+    await loadFromFirestore();
+    this.notify("All marked as read");
+  },
+
+  async deleteNotification(id) {
+    const n = state.notifications.find(x => x.id === id);
+    if (!n) return;
+    const allowed = n.userId === state.currentUser?.id || n.userId === "all" || this.isLead();
+    if (!allowed) return this.notify("Cannot delete this notification");
+    if (!confirm("Delete notification?")) return;
+    try {
+      const deletedBy = [...new Set([...(n.deletedBy || []), state.currentUser.id])];
+      await fsUpdate("notifications", id, { deletedBy });
+      await loadFromFirestore();
+      this.render("notifications");
+      this.notify("Notification deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async deleteAllMyNotifications() {
+    const mine = state.notifications.filter(n => n.userId === state.currentUser?.id || n.userId === "all");
+    if (!mine.length) return this.notify("No notifications");
+    if (!confirm("Delete all your notifications?")) return;
+    try {
+      for (const n of mine) {
+        const deletedBy = [...new Set([...(n.deletedBy || []), state.currentUser.id])];
+        await fsUpdate("notifications", n.id, { deletedBy });
+      }
+      await loadFromFirestore();
+      this.render("notifications");
+      this.notify("All deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  getMyNotifications() {
+    return state.notifications.filter(n =>
+      n.projectId === state.activeProjectId &&
+      (n.userId === state.currentUser?.id || n.userId === "all") &&
+      !(Array.isArray(n.deletedBy) && n.deletedBy.includes(state.currentUser?.id))
+    );
+  },
+
+  getMyUnreadNotifications() { return this.getMyNotifications().filter(n => !n.read); },
+
+  updateUnreadBadges() {
+    if (!state.currentUser) return;
+    const unreadNotifs = this.getMyUnreadNotifications().length;
+    const unseenChats = state.chats.filter(c =>
+      c.projectId === state.activeProjectId &&
+      c.userId !== state.currentUser.id &&
+      !c.seenBy?.includes?.(state.currentUser.id)
+    ).length;
+
+    ["notif-unread-badge", "mobile-notif-unread-badge"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = unreadNotifs;
+      el.classList.toggle("hidden", unreadNotifs === 0);
+    });
+    ["chat-unread-badge", "mobile-chat-unread-badge"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = unseenChats;
+      el.classList.toggle("hidden", unseenChats === 0);
+    });
+  },
+
+  // ──────────────────────────────────────────────
+  // CHAT
+  // ──────────────────────────────────────────────
+  async sendChat(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    const message = String(state.chatDraft || "").trim();
+    if (!message) { if (submitBtn) submitBtn.disabled = false; return; }
+    if (!state.activeProjectId) { if (submitBtn) submitBtn.disabled = false; return this.notify("Open a project first"); }
+    try {
+      await db.collection("chats").add({
+        projectId: state.activeProjectId,
+        userId: state.currentUser.id,
+        userName: state.currentUser.name,
+        message,
+        seenBy: [state.currentUser.id],
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      });
+      await this.createBroadcastNotification("New Chat Message", `${state.currentUser.name}: ${message.slice(0,50)}`);
+      // FIX: Clear the draft and the input field
+      state.chatDraft = "";
+      const chatInput = document.getElementById("chat-input");
+      if (chatInput) chatInput.value = "";
+      this.scrollChatToBottom();
+      this.notify("Sent");
+    } catch (err) { console.error(err); this.notify(err.message || "Send failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteChat(id) {
+    if (!state.currentUser) return;
+    const msg = state.chats.find(c => c.id === id);
+    if (!msg) return;
+    if (!(msg.userId === state.currentUser.id || this.isLead())) return this.notify("Unauthorized");
+    if (!confirm("Delete this message?")) return;
+    try {
+      await fsDelete("chats", id);
+      this.notify("Message deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  async markChatSeen() {
+    if (!state.currentUser) return;
+    const unseen = state.chats.filter(c =>
+      c.userId !== state.currentUser.id &&
+      !c.seenBy?.includes?.(state.currentUser.id)
+    );
+    for (const msg of unseen) {
+      const updatedSeenBy = [...new Set([...(msg.seenBy || []), state.currentUser.id])];
+      try { await fsUpdate("chats", msg.id, { seenBy: updatedSeenBy }); } catch(e) {}
+    }
+    this.updateUnreadBadges();
+  },
+
+  // ──────────────────────────────────────────────
+  // FEED
+  // ──────────────────────────────────────────────
+  async postUpdate(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    const fd = new FormData(e.target);
+    const content = String(fd.get("content") || "").trim();
+    const progress = Number(fd.get("progress") || 0);
+    const blockers = String(fd.get("blockers") || "").trim();
+    if (!content) { if (submitBtn) submitBtn.disabled = false; return this.notify("Content cannot be empty"); }
+    try {
+      await db.collection("feed").add({
+        projectId: state.activeProjectId || "",
+        userId: state.currentUser.id,
+        userName: state.currentUser.name,
+        module: state.currentUser.module,
+        content, progress, blockers,
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      });
+      await this.createBroadcastNotification("Team Update", `${state.currentUser.name} posted a new update`);
+      this.closeModal();
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Update posted");
+    } catch (err) { console.error(err); this.notify(err.message || "Post failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteFeedItem(id) {
+    const item = state.feed.find(f => f.id === id);
+    if (!this.canModify(item, "userId")) return this.notify("Unauthorized");
+    if (!confirm("Delete this log entry?")) return;
+    try {
+      await fsDelete("feed", id);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // USERS
+  // ──────────────────────────────────────────────
+  async addUser(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!this.isLead()) { if (submitBtn) submitBtn.disabled = false; return this.notify("Leads only"); }
+    const fd = new FormData(e.target);
+    const name = String(fd.get("name") || "").trim();
+    const username = String(fd.get("email") || "").trim().toLowerCase();
+    const password = String(fd.get("password") || "").trim();
+    const role = String(fd.get("role") || "member").trim();
+    const module = String(fd.get("module") || "").trim();
+    if (!name || !username || !password || !role || !module) { if (submitBtn) submitBtn.disabled = false; return this.notify("Fill all fields"); }
+    try {
+      // Check if username already exists
+      const existing = await db.collection("users").where("username", "==", username).limit(1).get();
+      if (!existing.empty) { if (submitBtn) submitBtn.disabled = false; return this.notify("Username already taken"); }
+      const uid = "user_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+      await db.collection("users").doc(uid).set({
+        id: uid,
+        name, username, password, role, module,
+        email: username + "@nayaruvi.com",
+        createdAt: new Date().toISOString()
+      });
+      await loadFromFirestore();
+      this.closeModal();
+      this.render(state.activeView);
+      this.notify("Member registered");
+    } catch (err) {
+      console.error(err);
+      this.notify(err.message || "Registration failed");
+    }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteUser(id) {
+    if (!this.isLead()) return this.notify("Leads only");
+    if (!confirm("Terminate this user?")) return;
+    try {
+      await fsDelete("users", id);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("User removed");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // MILESTONES
+  // ──────────────────────────────────────────────
+  async createMilestone(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    const fd = new FormData(e.target);
+    const title = String(fd.get("title") || "").trim();
+    const date = String(fd.get("date") || "").trim();
+    const description = String(fd.get("description") || "").trim();
+    const progress = Number(fd.get("progress") || 0);
+    if (!title || !date || !description) { if (submitBtn) submitBtn.disabled = false; return this.notify("Fill all fields"); }
+    try {
+      await db.collection("milestones").add({
+        projectId: state.activeProjectId || "",
+        title, date, progress, description,
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString()
+      });
+      await this.createBroadcastNotification("Milestone Added", `${title} – target: ${date}`);
+      this.closeModal();
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Milestone created");
+    } catch (err) { console.error(err); this.notify(err.message || "Failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async updateMilestone(e, id) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    const m = state.milestones.find(x => x.id === id);
+    if (!m || !this.canModify(m)) { if (submitBtn) submitBtn.disabled = false; return this.notify("Access Denied"); }
+    const fd = new FormData(e.target);
+    const progress = Number(fd.get("progress") || 0);
+    const description = String(fd.get("description") || "").trim();
+    if (!description) { if (submitBtn) submitBtn.disabled = false; return this.notify("Description required"); }
+    try {
+      await fsUpdate("milestones", id, { progress, description });
+      await this.createBroadcastNotification("Milestone Updated", `${m.title} → ${progress}%`);
+      this.closeModal();
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Milestone updated");
+    } catch (err) { this.notify(err.message || "Failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteMilestone(id) {
+    const m = state.milestones.find(x => x.id === id);
+    if (!this.canModify(m)) return this.notify("Unauthorized");
+    if (!confirm("Delete milestone?")) return;
+    try {
+      await fsDelete("milestones", id);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // DOCS
+  // ──────────────────────────────────────────────
+  async createDoc(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    const fd = new FormData(e.target);
+    const title = String(fd.get("title") || "").trim();
+    const url = String(fd.get("url") || "").trim();
+    const fileName = String(fd.get("fileName") || "").trim();
+    if (!title) { if (submitBtn) submitBtn.disabled = false; return this.notify("Title required"); }
+    if (!url && !fileName) { if (submitBtn) submitBtn.disabled = false; return this.notify("Provide URL or file name"); }
+    try {
+      await db.collection("docs").add({
+        projectId: state.activeProjectId || "",
+        title, url: url || "",
+        fileName: fileName || "",
+        uploadedBy: state.currentUser.name,
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString()
+      });
+      await this.createBroadcastNotification("Resource Added", `${title} published to knowledge base`);
+      this.closeModal();
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Resource published");
+    } catch (err) { this.notify(err.message || "Failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteDoc(id) {
+    const d = state.docs.find(x => x.id === id);
+    if (!this.canModify(d)) return this.notify("Unauthorized");
+    if (!confirm("Delete resource?")) return;
+    try {
+      await fsDelete("docs", id);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Resource removed");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // MEETINGS
+  // ──────────────────────────────────────────────
+  async createMeeting(e) {
+    e.preventDefault();
+    const submitBtn = e.target?.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (!state.currentUser) { if (submitBtn) submitBtn.disabled = false; return this.showLogin(); }
+    const fd = new FormData(e.target);
+    const title = String(fd.get("title") || "").trim();
+    const startAt = String(fd.get("startAt") || "").trim();
+    const notes = String(fd.get("notes") || "").trim();
+    if (!title || !startAt || !notes) { if (submitBtn) submitBtn.disabled = false; return this.notify("Fill all required fields"); }
+    try {
+      await db.collection("meetings").add({
+        projectId: state.activeProjectId || "",
+        title, startAt,
+        endAt: fd.get("endAt") || "",
+        date: startAt,
+        location: fd.get("location") || "",
+        link: fd.get("link") || "",
+        notes,
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString()
+      });
+      await this.createBroadcastNotification("Meeting Scheduled", `${title} – ${this.formatDateTime(startAt)}`);
+      this.closeModal();
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Meeting added");
+    } catch (err) { this.notify(err.message || "Failed"); }
+    finally { if (submitBtn) submitBtn.disabled = false; }
+  },
+
+  async deleteMeeting(id) {
+    const mt = state.meetings.find(x => x.id === id);
+    if (!this.canModify(mt)) return this.notify("Unauthorized");
+    if (!confirm("Delete meeting?")) return;
+    try {
+      await fsDelete("meetings", id);
+      await loadFromFirestore();
+      this.render(state.activeView);
+      this.notify("Meeting deleted");
+    } catch (err) { this.notify(err.message || "Failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // ATTENDANCE
+  // ──────────────────────────────────────────────
+  async checkIn() {
+    const today = new Date().toLocaleDateString();
+    try {
+      const existing = state.attendance.find(a => a.userId === state.currentUser.id && a.date === today);
+      if (existing) return this.notify("Already checked in today");
+      await db.collection("attendance").add({
+        projectId: state.activeProjectId || "",
+        userId: state.currentUser.id,
+        userName: state.currentUser.name,
+        date: today,
+        status: "Present",
+        checkIn: new Date().toLocaleTimeString(),
+        checkOut: "",
+        summary: "",
+        creatorId: state.currentUser.id,
+        createdAt: new Date().toISOString()
+      });
+      await loadFromFirestore();
+      this.render("attendance");
+      this.notify("Checked in");
+    } catch (err) { this.notify(err.message || "Check-in failed"); }
+  },
+
+  async checkOut() {
+    const today = new Date().toLocaleDateString();
+    const record = state.attendance.find(a => a.userId === state.currentUser.id && a.date === today);
+    if (!record) return this.notify("No check-in record found");
+    try {
+      await fsUpdate("attendance", record.id, { checkOut: new Date().toLocaleTimeString() });
+      await loadFromFirestore();
+      this.render("attendance");
+      this.notify("Checked out");
+    } catch (err) { this.notify(err.message || "Check-out failed"); }
+  },
+
+  async saveSummary() {
+    const text = document.getElementById("summary")?.value?.trim();
+    if (!text) return this.notify("Summary is empty");
+    const today = new Date().toLocaleDateString();
+    const record = state.attendance.find(a => a.userId === state.currentUser.id && a.date === today);
+    if (!record) return this.notify("Check in first");
+    try {
+      await fsUpdate("attendance", record.id, { summary: text });
+      await loadFromFirestore();
+      this.notify("Summary saved");
+    } catch (err) { this.notify(err.message || "Save failed"); }
+  },
+
+  // ──────────────────────────────────────────────
+  // PROJECT SUMMARY / ROADMAP / RISKS
+  // ──────────────────────────────────────────────
+  saveSummaryConfig(e) {
+    e.preventDefault();
+    if (!this.isLead()) return this.notify("Leads only");
+    const fd = new FormData(e.target);
+    state.projectSummary.projectName = fd.get("projectName") || "";
+    state.projectSummary.projectOwner = fd.get("projectOwner") || "";
+    state.projectSummary.targetRelease = fd.get("targetRelease") || "";
+    state.projectSummary.vision = fd.get("vision") || "";
+    state.projectSummary.weeklyFocus = fd.get("weeklyFocus") || "";
+    state.projectSummary.launchGoal = fd.get("launchGoal") || "";
+    this.saveProjectSummary();
+    this.closeModal();
+    this.render("summary");
+    this.notify("Summary updated");
+  },
+
+  handleRoadmapDragStart(event, id) {
+    if (!this.isLead()) return;
+    event.dataTransfer.setData("text/plain", id);
+  },
+
+  handleRoadmapDrop(event, targetStatus) {
+    event.preventDefault();
+    if (!this.isLead()) return this.notify("Leads only");
+    const draggedId = event.dataTransfer.getData("text/plain");
+    const item = (state.projectSummary.roadmap || []).find(r => r.id === draggedId);
+    if (!item) return;
+    item.status = targetStatus;
+    this.saveProjectSummary();
+    this.render("summary");
+    this.notify(`Moved to ${targetStatus}`);
+  },
+
+  addRoadmapItem(e) {
+    e.preventDefault();
+    if (!this.isLead()) return this.notify("Leads only");
+    const fd = new FormData(e.target);
+    state.projectSummary.roadmap.push({
+      id: "roadmap_" + Date.now(),
+      phase: fd.get("phase") || "",
+      status: fd.get("status") || "todo",
+      start: fd.get("start") || "",
+      end: fd.get("end") || "",
+      description: fd.get("description") || ""
+    });
+    this.saveProjectSummary();
+    this.closeModal();
+    this.render("summary");
+    this.notify("Roadmap item added");
+  },
+
+  deleteRoadmapItem(id) {
+    if (!this.isLead()) return this.notify("Leads only");
+    if (!confirm("Delete roadmap item?")) return;
+    state.projectSummary.roadmap = (state.projectSummary.roadmap || []).filter(r => r.id !== id);
+    this.saveProjectSummary();
+    this.render("summary");
+    this.notify("Deleted");
+  },
+
+  addRiskItem(e) {
+    e.preventDefault();
+    if (!this.isLead()) return this.notify("Leads only");
+    const fd = new FormData(e.target);
+    state.projectSummary.risks.push({
+      id: "risk_" + Date.now(),
+      title: fd.get("title") || "",
+      level: fd.get("level") || "medium",
+      owner: fd.get("owner") || "",
+      description: fd.get("description") || ""
+    });
+    this.saveProjectSummary();
+    this.closeModal();
+    this.render("summary");
+    this.notify("Risk added");
+  },
+
+  deleteRiskItem(id) {
+    if (!this.isLead()) return this.notify("Leads only");
+    if (!confirm("Delete risk?")) return;
+    state.projectSummary.risks = (state.projectSummary.risks || []).filter(r => r.id !== id);
+    this.saveProjectSummary();
+    this.render("summary");
+    this.notify("Risk removed");
+  },
+
+  // ──────────────────────────────────────────────
+  // AI SUMMARY
+  // ──────────────────────────────────────────────
+  generateLocalAISummary() {
+    const tasks = this.getProjectTasks();
+    const totalTasks = tasks.length;
+    const doneTasks = tasks.filter(t => t.status === "done").length;
+    const doingTasks = tasks.filter(t => t.status === "doing").length;
+    const reviewTasks = tasks.filter(t => t.status === "review").length;
+    const todoTasks = tasks.filter(t => t.status === "todo").length;
+    const overdueTasks = tasks.filter(t => {
+      const dl = this.getTaskDeadline(t);
+      return dl && t.status !== "done" && this.isPast(dl) && !this.isToday(dl);
+    });
+    const milestones = this.getProjectMilestones();
+    const milestoneAvg = milestones.length
+      ? Math.round(milestones.reduce((s, m) => s + Number(m.progress || 0), 0) / milestones.length) : 0;
+    const progress = this.getOverallProjectProgress();
+    const health = this.getProjectHealthLabel().label;
+    const risks = state.projectSummary.risks || [];
+    const highRisks = risks.filter(r => r.level === "high").length;
+
+    let summary = `Current project status for ${state.projectSummary.projectName || "the project"}:\n\n`;
+    summary += `Overall completion is ${progress}%. Project health: ${health}.\n`;
+    summary += `${totalTasks} total tasks — ${doneTasks} completed, ${doingTasks} in progress, ${reviewTasks} in review, ${todoTasks} pending.\n`;
+    summary += `Average milestone completion: ${milestoneAvg}%.\n`;
+    if (overdueTasks.length) {
+      summary += `${overdueTasks.length} overdue tasks need attention: ${overdueTasks.slice(0,3).map(t=>t.title).join(", ")}.\n`;
+    } else { summary += `No overdue tasks.\n`; }
+    if (highRisks > 0) summary += `${highRisks} high-level risks recorded. Leadership attention needed.\n`;
+    else if (risks.length) summary += `${risks.length} risks recorded, none high severity.\n`;
+    else summary += `No active risks recorded.\n`;
+    if (progress >= 80 && overdueTasks.length === 0) summary += `Project is in strong position, close to launch readiness.`;
+    else if (progress >= 50) summary += `Project progressing steadily. Maintain execution discipline.`;
+    else summary += `Early/mid execution stage. Stronger progress needed across roadmap and delivery.`;
+
+    state.aiSummary.text = summary.trim();
+    state.aiSummary.generatedAt = new Date().toLocaleString();
+  },
+
+  refreshAISummary() {
+    this.generateLocalAISummary();
+    this.render("summary");
+    this.notify("AI summary generated");
+  },
+
+  // ──────────────────────────────────────────────
+  // HEADER / UI HELPERS
+  // ──────────────────────────────────────────────
+  updateHeader() {
+    const u = state.currentUser;
+    if (!u) return;
+    const activeProject = this.getActiveProject();
+    document.getElementById("header-user-name").textContent = u.name;
+    document.getElementById("header-user-role").textContent = activeProject ? `${u.role} • ${activeProject.name}` : u.role;
+    document.getElementById("header-user-initial").textContent = (u.name || "U").charAt(0).toUpperCase();
+  },
+
+  notify(msg) { showToast(msg); },
+
+  scrollChatToBottom() {
+    requestAnimationFrame(() => {
+      const box = document.getElementById("chat-messages");
+      if (box) box.scrollTop = box.scrollHeight;
+    });
+  },
+
+  toggleSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    if (!sidebar || !backdrop) return;
+    if (window.innerWidth >= 768) return;
+    if (sidebar.classList.contains("sidebar-mobile-open")) { this.closeSidebar(); return; }
+    sidebar.classList.remove("hidden");
+    sidebar.classList.add("sidebar-mobile-open");
+    backdrop.classList.remove("hidden");
+  },
+
+  closeSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    if (!sidebar || !backdrop) return;
+    sidebar.classList.remove("sidebar-mobile-open");
+    if (this.sidebarCloseTimer) clearTimeout(this.sidebarCloseTimer);
+    if (window.innerWidth < 768) {
+      this.sidebarCloseTimer = setTimeout(() => sidebar.classList.add("hidden"), 260);
+    }
+    backdrop.classList.add("hidden");
+  },
+
+  // FIX: Close modal when clicking the dark overlay background (not the content)
+  handleModalOverlayClick(e) {
+    if (e.target === document.getElementById("modal-overlay")) {
+      this.closeModal();
+    }
+  },
+
+  formatDateTime(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString();
+  },
+
+  formatDate(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString();
+  },
+
+  formatTime(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  },
+
+  getTaskDeadline(task) { return task.deadline || task.dueDate || task.date || ""; },
+  getMeetingStart(m) { return m.startAt || m.datetime || m.date || ""; },
+  getMeetingEnd(m) { return m.endAt || ""; },
+
+  isToday(dateValue) {
+    if (!dateValue) return false;
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return false;
+    return d.toDateString() === new Date().toDateString();
+  },
+
+  isPast(dateValue) {
+    if (!dateValue) return false;
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return false;
+    return d.getTime() < Date.now();
+  },
+
+  getTodayDateString() { return new Date().toLocaleDateString(); },
+  getNonLeadUsers() { return state.users.filter(u => u.role !== "lead"); },
+
+  getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  },
+
+  getTodayMeetings() {
+    const today = this.toLocalDateString(new Date());
+    return state.meetings.filter(m => {
+      const s = this.getMeetingStart(m);
+      return s && this.toLocalDateString(s) === today;
+    });
+  },
+
+  getPendingTasks() {
+    return state.tasks.filter(t => t.assigneeId === state.currentUser?.id && t.status !== "done");
+  },
+
+  getOverdueTasksForCurrentUser() {
+    return state.tasks.filter(t => {
+      const dl = this.getTaskDeadline(t);
+      return t.assigneeId === state.currentUser?.id && dl && t.status !== "done" && this.isPast(dl) && !this.isToday(dl);
+    });
+  },
+
+  getOverallProjectProgress() {
+    const tasks = this.getProjectTasks();
+    const milestones = this.getProjectMilestones();
+    const totalTasks = tasks.length;
+    const doneTasks = tasks.filter(t => t.status === "done").length;
+    const taskProgress = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
+    const milestoneAvg = milestones.length
+      ? Math.round(milestones.reduce((s, m) => s + Number(m.progress || 0), 0) / milestones.length) : 0;
+    if (!totalTasks && !milestones.length) return 0;
+    if (totalTasks && milestones.length) return Math.round((taskProgress + milestoneAvg) / 2);
+    return totalTasks ? taskProgress : milestoneAvg;
+  },
+
+  getProjectHealthLabel() {
+    const tasks = this.getProjectTasks();
+    const overdue = tasks.filter(t => {
+      const dl = this.getTaskDeadline(t);
+      return dl && t.status !== "done" && this.isPast(dl) && !this.isToday(dl);
+    }).length;
+    const review = tasks.filter(t => t.status === "review").length;
+    const progress = this.getOverallProjectProgress();
+    if (overdue >= 5) return { label: "Critical", color: "text-rose-400" };
+    if (overdue >= 2 || review >= 4) return { label: "At Risk", color: "text-amber-400" };
+    if (progress >= 70) return { label: "Healthy", color: "text-emerald-400" };
+    return { label: "On Track", color: "text-indigo-400" };
+  },
+
+  getTopOwners() {
+    const tasks = this.getProjectTasks();
+    const map = {};
+    tasks.forEach(t => {
+      const owner = state.users.find(u => u.id === t.assigneeId)?.name || "Unassigned";
+      if (!map[owner]) map[owner] = { total: 0, done: 0 };
+      map[owner].total += 1;
+      if (t.status === "done") map[owner].done += 1;
+    });
+    return Object.entries(map).map(([name, val]) => ({
+      name, total: val.total, done: val.done,
+      progress: val.total ? Math.round((val.done / val.total) * 100) : 0
+    })).sort((a, b) => b.total - a.total).slice(0, 6);
+  },
+
+  getCriticalTasks(limit = 5) {
+    const tasks = this.getProjectTasks();
+    return tasks.filter(t => {
+      const dl = this.getTaskDeadline(t);
+      return t.status !== "done" && (t.priority === "high" || (dl && this.isPast(dl)));
+    }).sort((a, b) => {
+      const da = this.getTaskDeadline(a) ? new Date(this.getTaskDeadline(a)).getTime() : Infinity;
+      const db2 = this.getTaskDeadline(b) ? new Date(this.getTaskDeadline(b)).getTime() : Infinity;
+      return da - db2;
+    }).slice(0, limit);
+  },
+
+  getUpcomingItems(daysAhead = 7) {
+    const now = new Date();
+    const future = new Date(); future.setDate(future.getDate() + daysAhead);
+    const items = [];
+    this.getProjectTasks().forEach(t => {
+      const dl = this.getTaskDeadline(t);
+      if (!dl || t.status === "done") return;
+      const d = new Date(dl);
+      if (!isNaN(d) && d >= now && d <= future) items.push({ type:"task", title:t.title, date:dl, meta:t.module||"Task" });
+    });
+    this.getProjectMeetings().forEach(m => {
+      const s = this.getMeetingStart(m);
+      if (!s) return;
+      const d = new Date(s);
+      if (!isNaN(d) && d >= now && d <= future) items.push({ type:"meeting", title:m.title, date:s, meta:"Meeting" });
+    });
+    this.getProjectMilestones().forEach(ms => {
+      if (!ms.date) return;
+      const d = new Date(ms.date);
+      if (!isNaN(d) && d >= now && d <= future) items.push({ type:"milestone", title:ms.title, date:ms.date, meta:"Milestone" });
+    });
+    return items.sort((a, b) => new Date(a.date) - new Date(b.date));
+  },
+
+  timeToMinutes(timeStr) {
+    if (!timeStr) return null;
+    const match = timeStr.match(/(\d+):(\d+):?(\d+)?\s*(AM|PM)?/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const meridian = match[4] ? match[4].toUpperCase() : null;
+    if (meridian === "PM" && hours !== 12) hours += 12;
+    if (meridian === "AM" && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  },
+
+  getTodayAttendanceRecords() {
+    const today = this.getTodayDateString();
+    return state.attendance.filter(a => a.date === today);
+  },
+
+  getAttendanceAnalytics() {
+    const todayRecords = this.getTodayAttendanceRecords();
+    const teamMembers = this.getNonLeadUsers();
+    const teamIds = new Set(teamMembers.map(u => u.id));
+    const filtered = todayRecords.filter(r => teamIds.has(r.userId));
+    const lateThreshold = 9 * 60 + 30;
+    return {
+      totalMembers: teamMembers.length,
+      present: filtered.length,
+      checkedOut: filtered.filter(r => r.checkOut).length,
+      activeNow: filtered.filter(r => r.checkIn && !r.checkOut).length,
+      absent: Math.max(teamMembers.length - filtered.length, 0),
+      lateArrivals: filtered.filter(r => {
+        const m = this.timeToMinutes(r.checkIn);
+        return m !== null && m > lateThreshold;
+      }).length
+    };
+  },
+
+  getAbsentUsersToday() {
+    const todayRecords = this.getTodayAttendanceRecords();
+    const presentIds = new Set(todayRecords.map(r => r.userId));
+    return this.getNonLeadUsers().filter(u => !presentIds.has(u.id));
+  },
+
+  getFileMeta(doc) {
+    const source = (doc.fileName || doc.url || "").toLowerCase();
+    if (source.match(/\.(pdf)$/)) return { icon:"file-text", label:"PDF", color:"text-rose-400" };
+    if (source.match(/\.(doc|docx)$/)) return { icon:"file-text", label:"Word", color:"text-blue-400" };
+    if (source.match(/\.(xls|xlsx)$/)) return { icon:"sheet", label:"Excel", color:"text-emerald-400" };
+    if (source.match(/\.(ppt|pptx)$/)) return { icon:"presentation", label:"PowerPoint", color:"text-orange-400" };
+    if (source.match(/\.(png|jpg|jpeg|webp|gif)$/)) return { icon:"image", label:"Image", color:"text-cyan-400" };
+    if (source.match(/\.(zip|rar)$/)) return { icon:"archive", label:"Archive", color:"text-amber-400" };
+    if (source.match(/\.(txt)$/)) return { icon:"file", label:"Text", color:"text-slate-300" };
+    return { icon:"file", label:"File", color:"text-indigo-400" };
+  },
+
+  getDocOpenLink(doc) { return doc.url || "#"; },
+
+  getCalendarEventsForDate(dateStr) {
+    const items = [];
+    this.getProjectTasks().forEach(t => {
+      const dl = this.getTaskDeadline(t);
+      if (dl && this.toLocalDateString(dl) === dateStr) {
+        const overdue = t.status !== "done" && this.isPast(dl) && !this.isToday(dl);
+        items.push({ id:"task-"+t.id, type:overdue?"overdue":"task", title:t.title, subtitle:t.module||"Task", rawDate:dl, status:t.status });
+      }
+    });
+    this.getProjectMeetings().forEach(m => {
+      const s = this.getMeetingStart(m);
+      if (s && this.toLocalDateString(s) === dateStr) {
+        items.push({ id:"meeting-"+m.id, type:"meeting", title:m.title, subtitle:this.formatTime(s), rawDate:s });
+      }
+    });
+    this.getProjectMilestones().forEach(ms => {
+      if (ms.date && this.toLocalDateString(ms.date) === dateStr) {
+        items.push({ id:"milestone-"+ms.id, type:"milestone", title:ms.title, subtitle:`${ms.progress||0}% complete`, rawDate:ms.date });
+      }
+    });
+    return items.sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER
+  // ──────────────────────────────────────────────
+  render(view, query = "") {
+    state.activeView = view;
+    const container = document.getElementById("viewport");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const projectViews = ["overview","summary","tasks","mywork","feed","chat","notifications","milestones","team","docs","meetings","attendance","calendar"];
+    if (projectViews.includes(view) && !state.activeProjectId) {
+      state.activeView = "projects";
+      return this.renderProjects(container, query);
+    }
+
+    switch (view) {
+      case "projects": this.renderProjects(container, query); break;
+      case "overview": this.renderOverview(container, query); break;
+      case "summary": this.renderSummary(container); break;
+      case "tasks": this.renderTasks(container, query); break;
+      case "mywork": this.renderMyWork(container, query); break;
+      case "feed": this.renderFeed(container, query); break;
+      case "chat": this.renderChat(container, query); break;
+      case "notifications": this.renderNotifications(container, query); break;
+      case "milestones": this.renderMilestones(container, query); break;
+      case "team": this.renderTeam(container, query); break;
+      case "docs": this.renderDocs(container, query); break;
+      case "meetings": this.renderMeetings(container, query); break;
+      case "attendance": this.renderAttendance(container); break;
+      case "calendar": this.renderCalendar(container); break;
+      default: this.renderOverview(container, query);
+    }
+    lucide.createIcons();
+    this.scrollChatToBottom();
+  },
+
+  kpiCard(label, val, icon, color) {
+    const colors = {
+      indigo: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+      emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+      rose: "text-rose-400 bg-rose-500/10 border-rose-500/20"
+    };
+    return `<div class="glass-card p-5 rounded-2xl flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center ${colors[color]} border"><i data-lucide="${esc(icon)}" class="w-6 h-6"></i></div>
+      <div><p class="text-[11px] uppercase tracking-widest font-bold text-slate-500">${esc(label)}</p><h3 class="text-2xl font-bold">${esc(String(val))}</h3></div>
+    </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: PROJECTS
+  // ──────────────────────────────────────────────
+  renderProjects(el, query = "") {
+    const projects = this.getMyProjects().filter(p =>
+      (p.name||"").toLowerCase().includes(query) || (p.code||"").toLowerCase().includes(query) ||
+      (p.description||"").toLowerCase().includes(query) || (p.lifecycleStage||"").toLowerCase().includes(query)
+    );
+    const isLead = this.isLead();
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8">
+        <div><h2 class="text-3xl font-bold">Projects</h2><p class="text-slate-400 mt-1">Select a project to open its dashboard.</p></div>
+        ${isLead ? `<button onclick="App.openModal('project')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Create Project</button>` : ""}
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        ${projects.length ? projects.map(project => {
+          const members = state.users.filter(u => (project.memberIds||[]).includes(u.id));
+          const lifecycleStage = project.lifecycleStage || "Upstream";
+          const statusClass = project.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+            : project.status === "paused" ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+            : project.status === "completed" ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/20"
+            : "bg-slate-800 text-slate-300 border-white/10";
+          const lcClass = lifecycleStage === "Development" ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/20"
+            : lifecycleStage === "Testing" ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+            : lifecycleStage === "Completed" ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/20"
+            : "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
+          return `<div class="glass-card p-6 rounded-3xl cursor-pointer hover:border-indigo-500/30 transition-all" onclick="App.openProject('${esc(project.id)}')">
+            <div class="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <div class="inline-flex px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold uppercase tracking-widest mb-3">${esc(project.code||"PRJ")}</div>
+                <h3 class="text-xl font-bold">${esc(project.name)}</h3>
+                <p class="text-sm text-slate-400 mt-2">${esc(project.description||"No description.")}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap mb-4">
+              <span class="text-[10px] px-3 py-1 rounded-full border ${statusClass} font-bold uppercase">${esc(project.status||"active")}</span>
+              <span class="text-[10px] px-3 py-1 rounded-full border ${lcClass} font-bold">${esc(lifecycleStage)}</span>
+            </div>
+            <div class="space-y-2 text-xs text-slate-500">
+              <p>Members: ${members.length}</p>
+              <p>Created: ${project.createdAt ? new Date(project.createdAt).toLocaleDateString() : "-"}</p>
+            </div>
+            <div class="mt-5 flex items-center justify-between gap-3 flex-wrap">
+              <div class="flex -space-x-2">
+                ${members.slice(0,4).map(m => `<div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-950 flex items-center justify-center text-[10px] font-bold text-indigo-300">${esc((m.name||"U").charAt(0))}</div>`).join("")}
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                ${isLead ? `
+                  <button type="button" onclick="event.stopPropagation();App.openManageMembersModal('${esc(project.id)}')" class="px-3 py-1.5 rounded-xl border border-white/10 bg-slate-900/50 hover:bg-white/5 text-xs font-semibold">Members</button>
+                  <button type="button" onclick="event.stopPropagation();App.openTransitionModal('${esc(project.id)}')" class="px-3 py-1.5 rounded-xl border border-indigo-500/20 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 text-xs font-semibold">Move Stage</button>
+                  <button type="button" onclick="event.stopPropagation();App.openEditProjectModal('${esc(project.id)}')" class="px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 text-xs font-semibold">Edit</button>
+                  <button type="button" onclick="event.stopPropagation();App.deleteProject('${esc(project.id)}')" class="px-3 py-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold">Delete</button>
+                ` : ""}
+                <button type="button" onclick="event.stopPropagation();App.openProject('${esc(project.id)}')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold">Open</button>
+              </div>
+            </div>
+          </div>`;
+        }).join("") : `<div class="md:col-span-3 text-center py-20 glass rounded-3xl"><p class="text-slate-500 uppercase tracking-widest text-xs font-bold">No projects found</p></div>`}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: OVERVIEW
+  // ──────────────────────────────────────────────
+  renderWelcomeBanner() {
+    const greeting = this.getGreeting();
+    const userName = esc(state.currentUser?.name || "User");
+    const todayMeetings = this.getTodayMeetings();
+    const pendingTasks = this.getPendingTasks();
+    const overdueTasks = this.getOverdueTasksForCurrentUser();
+    return `<div class="glass rounded-3xl p-6 md:p-8 border border-indigo-500/10 bg-gradient-to-br from-indigo-500/10 via-slate-900/40 to-cyan-500/5 overflow-hidden relative">
+      <div class="absolute -top-12 -right-12 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 text-indigo-300 text-[11px] font-bold uppercase tracking-widest mb-4">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Workspace Briefing
+          </div>
+          <h2 class="text-2xl md:text-3xl font-bold">${greeting}, <span class="text-indigo-400">${userName}</span></h2>
+          <p class="text-slate-400 mt-2 max-w-2xl text-sm">Executive snapshot for today.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+            <div class="bg-slate-950/40 border border-white/5 rounded-2xl p-4">
+              <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Today's Meetings</p>
+              <p class="text-2xl font-black mt-2 text-cyan-300">${todayMeetings.length}</p>
+            </div>
+            <div class="bg-slate-950/40 border border-white/5 rounded-2xl p-4">
+              <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Pending Tasks</p>
+              <p class="text-2xl font-black mt-2 text-indigo-300">${pendingTasks.length}</p>
+            </div>
+            <div class="bg-slate-950/40 border border-white/5 rounded-2xl p-4">
+              <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Overdue Alerts</p>
+              <p class="text-2xl font-black mt-2 ${overdueTasks.length ? "text-rose-400" : "text-emerald-400"}">${overdueTasks.length}</p>
+            </div>
+          </div>
+        </div>
+        <div class="xl:w-[280px]">
+          <div class="bg-slate-950/40 border border-white/5 rounded-3xl p-5">
+            <div class="flex items-center gap-2 mb-4"><i data-lucide="zap" class="w-4 h-4 text-indigo-400"></i><h3 class="font-bold text-sm">Quick Actions</h3></div>
+            <div class="grid grid-cols-1 gap-3">
+              <button onclick="App.openModal('task')" class="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition-all text-sm font-semibold"><span>Create Task</span><i data-lucide="plus" class="w-4 h-4"></i></button>
+              <button onclick="App.openModal('meeting')" class="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900/60 hover:bg-white/5 border border-white/10 transition-all text-sm font-semibold"><span>Schedule Meeting</span><i data-lucide="calendar-plus" class="w-4 h-4"></i></button>
+              <button onclick="App.navigate('mywork')" class="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900/60 hover:bg-white/5 border border-white/10 transition-all text-sm font-semibold"><span>My Work</span><i data-lucide="briefcase" class="w-4 h-4"></i></button>
+              <button onclick="App.navigate('calendar')" class="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-900/60 hover:bg-white/5 border border-white/10 transition-all text-sm font-semibold"><span>View Deadlines</span><i data-lucide="calendar-days" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  },
+
+  renderOverview(el) {
+    const tasks = this.getProjectTasks();
+    const stats = {
+      total: tasks.length,
+      done: tasks.filter(t=>t.status==="done").length,
+      review: tasks.filter(t=>t.status==="review").length,
+      progress: tasks.length ? Math.round(tasks.filter(t=>t.status==="done").length/tasks.length*100) : 0
+    };
+    const milestones = this.getProjectMilestones();
+    const moduleMap = {};
+    tasks.forEach(t => { moduleMap[t.module] = (moduleMap[t.module]||0)+1; });
+    const sortedModules = Object.entries(moduleMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const maxVal = sortedModules.length ? Math.max(...sortedModules.map(m=>m[1])) : 1;
+    const unreadCount = this.getMyUnreadNotifications().length;
+    const latestMessages = this.getProjectChats().slice().reverse().slice(0,4);
+    const dueSoon = this.getUpcomingItems(7).slice(0,5);
+
+    el.innerHTML = `
+      ${this.renderWelcomeBanner()}
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-8">
+        <div><h2 class="text-3xl font-bold">Executive Dashboard</h2><p class="text-slate-400 mt-1">Real-time telemetry.</p></div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-8">
+        ${this.kpiCard("Total Tasks", stats.total, "layers", "indigo")}
+        ${this.kpiCard("Completed", stats.done, "check-circle", "emerald")}
+        ${this.kpiCard("Quality Check", stats.review, "shield-alert", "rose")}
+        ${this.kpiCard("Milestones", milestones.length, "flag", "amber")}
+        ${this.kpiCard("Unread Alerts", unreadCount, "bell", "indigo")}
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        <div class="lg:col-span-2 space-y-6">
+          <div class="glass p-6 rounded-3xl">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="font-bold flex items-center gap-2"><i data-lucide="bar-chart-2" class="w-4 h-4 text-indigo-400"></i> Module Distribution</h3>
+            </div>
+            ${sortedModules.length ? `<div class="h-64 flex items-end justify-around gap-4 px-2">
+              ${sortedModules.map(([name,count])=>`<div class="flex-1 flex flex-col items-center gap-3"><div class="w-full bg-indigo-500/20 rounded-t-xl relative group hover:bg-indigo-500/40" style="height:${(count/maxVal)*100}%"><div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-[11px] font-bold text-indigo-400 px-3 py-1.5 rounded-lg border border-white/5 opacity-0 group-hover:opacity-100 whitespace-nowrap">${esc(String(count))} Tasks</div></div><span class="text-[10px] text-slate-500 font-bold truncate w-full text-center uppercase">${esc(name||"General")}</span></div>`).join("")}
+            </div>` : `<div class="h-64 flex flex-col items-center justify-center text-slate-600 gap-4"><i data-lucide="database-zap" class="w-12 h-12 opacity-20"></i><p class="text-xs font-bold uppercase tracking-widest italic">No tasks yet</p></div>`}
+          </div>
+          <div class="glass p-6 rounded-3xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold flex items-center gap-2"><i data-lucide="clock-3" class="w-4 h-4 text-indigo-400"></i> Upcoming This Week</h3>
+              <button onclick="App.navigate('calendar')" class="text-xs text-indigo-400 font-bold hover:text-indigo-300">Open Calendar</button>
+            </div>
+            <div class="space-y-3">
+              ${dueSoon.length ? dueSoon.map(item=>`<div class="bg-slate-900/40 border border-white/5 p-4 rounded-2xl flex items-center justify-between gap-4"><div><p class="text-sm font-semibold">${esc(item.title)}</p><p class="text-xs text-slate-500 mt-1">${esc(item.meta)}</p></div><span class="text-[10px] font-bold px-3 py-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 text-indigo-300">${esc(this.formatDateTime(item.date))}</span></div>`).join("") : `<div class="text-center py-10 text-slate-500 text-sm">No upcoming deadlines.</div>`}
+            </div>
+          </div>
+          <div class="glass p-6 rounded-3xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold flex items-center gap-2"><i data-lucide="messages-square" class="w-4 h-4 text-indigo-400"></i> Recent Team Chat</h3>
+              <button onclick="App.navigate('chat')" class="text-xs text-indigo-400 font-bold hover:text-indigo-300">Open Chat</button>
+            </div>
+            <div class="space-y-3">
+              ${latestMessages.length ? latestMessages.map(msg=>`<div class="bg-slate-900/40 border border-white/5 p-4 rounded-2xl"><div class="flex items-center justify-between gap-3"><p class="text-sm font-semibold text-slate-200">${esc(msg.userName)}</p><span class="text-[10px] text-slate-500">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ""}</span></div><p class="text-sm text-slate-400 mt-2 line-clamp-2">${esc(msg.message)}</p></div>`).join("") : `<div class="text-center py-10 text-slate-500 text-sm">No chat activity yet.</div>`}
+            </div>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-3xl flex flex-col items-center justify-center text-center">
+          <div class="relative w-40 h-40 mb-6">
+            <svg class="w-full h-full transform -rotate-90">
+              <circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="8" fill="transparent" class="text-white/5"/>
+              <circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="440" stroke-dashoffset="${440-(440*stats.progress/100)}" class="text-indigo-500 transition-all duration-1000"/>
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center flex-col">
+              <span class="text-4xl font-black">${stats.progress}%</span>
+              <span class="text-[10px] uppercase text-slate-500 font-bold">Aggregate</span>
+            </div>
+          </div>
+          <h4 class="font-bold text-lg">Ecosystem Health</h4>
+          <div class="mt-8 grid grid-cols-2 w-full gap-2">
+            <div class="bg-slate-900/50 p-3 rounded-2xl border border-white/5"><p class="text-[10px] font-bold text-slate-600 uppercase">Backlog</p><p class="text-lg font-black text-slate-400">${tasks.filter(t=>t.status==="todo").length}</p></div>
+            <div class="bg-slate-900/50 p-3 rounded-2xl border border-white/5"><p class="text-[10px] font-bold text-slate-600 uppercase">Done</p><p class="text-lg font-black text-emerald-500">${stats.done}</p></div>
+            <div class="bg-slate-900/50 p-3 rounded-2xl border border-white/5"><p class="text-[10px] font-bold text-slate-600 uppercase">Meetings</p><p class="text-lg font-black text-indigo-400">${this.getProjectMeetings().length}</p></div>
+            <div class="bg-slate-900/50 p-3 rounded-2xl border border-white/5"><p class="text-[10px] font-bold text-slate-600 uppercase">Alerts</p><p class="text-lg font-black text-indigo-400">${unreadCount}</p></div>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: TASKS
+  // ──────────────────────────────────────────────
+  renderTasks(el, query = "") {
+    const cols = [
+      {id:"todo", label:"Backlog", icon:"list"},
+      {id:"doing", label:"In Progress", icon:"play"},
+      {id:"review", label:"Quality Check", icon:"shield-check"},
+      {id:"done", label:"Production", icon:"package"}
+    ];
+    const filtered = this.getProjectTasks().filter(t =>
+      (t.title||"").toLowerCase().includes(query) || (t.module||"").toLowerCase().includes(query)
+    );
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8">
+        <div><h2 class="text-3xl font-bold">Kanban Ops</h2><p class="text-slate-400 mt-1">Manage tasks across modules.</p></div>
+        <button onclick="App.openModal('task')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Create Task</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        ${cols.map(col => `<div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between px-2">
+            <div class="flex items-center gap-2"><i data-lucide="${col.icon}" class="w-4 h-4 text-slate-500"></i><span class="text-xs font-black uppercase tracking-widest text-slate-400">${col.label}</span></div>
+            <span class="text-[10px] bg-slate-800 px-2 py-1 rounded-full text-slate-400">${filtered.filter(t=>t.status===col.id).length}</span>
+          </div>
+          <div class="kanban-column bg-slate-900/20 rounded-2xl border border-dashed border-white/5 p-3 space-y-3" ondragover="event.preventDefault()" ondrop="App.handleDrop(event,'${col.id}')">
+            ${filtered.filter(t=>t.status===col.id).sort((a,b) => {
+              const da = this.getTaskDeadline(a) ? new Date(this.getTaskDeadline(a)).getTime() : Infinity;
+              const db2 = this.getTaskDeadline(b) ? new Date(this.getTaskDeadline(b)).getTime() : Infinity;
+              return da - db2;
+            }).map(t=>this.taskCard(t)).join("")}
+            ${filtered.filter(t=>t.status===col.id).length===0 ? '<div class="text-[10px] text-slate-600 text-center py-10 uppercase font-bold italic">No signals detected</div>' : ""}
+          </div>
+        </div>`).join("")}
+      </div>`;
+  },
+
+  taskCard(t) {
+    const prioColor = t.priority==="high" ? "text-rose-400 border-rose-400/20 bg-rose-400/10"
+      : t.priority==="medium" ? "text-amber-400 border-amber-400/20 bg-amber-400/10"
+      : "text-emerald-400 border-emerald-400/20 bg-emerald-400/10";
+    const assignee = state.users.find(u => u.id === t.assigneeId) || { name: "Unassigned" };
+    const hasPermission = this.canModify(t);
+    const statusMap = {todo:"doing", doing:"review", review:"done"};
+    const nextStatus = statusMap[t.status];
+    const advanceLabel = nextStatus ? `Move to ${nextStatus==="doing"?"In Progress":nextStatus==="review"?"Quality Check":"Production"}` : null;
+    const deadline = this.getTaskDeadline(t);
+    const overdue = deadline && t.status !== "done" && this.isPast(deadline) && !this.isToday(deadline);
+    return `<div class="glass p-4 rounded-xl cursor-grab hover:border-indigo-500/40 transition-all shadow-lg group" draggable="${hasPermission}" ondragstart="event.dataTransfer.setData('text/plain','${esc(t.id)}')">
+      <div class="flex justify-between items-start mb-2">
+        <span class="text-[10px] px-2 py-0.5 rounded border ${prioColor} font-bold uppercase">${esc(t.priority)}</span>
+        <div class="flex items-center gap-2">
+          <span class="text-[9px] text-slate-500 font-bold">${esc(assignee.name)}</span>
+          <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-[8px] font-bold">${esc((assignee.name||"U").charAt(0))}</div>
+          ${hasPermission ? `<button onclick="App.deleteTask('${esc(t.id)}')" class="p-1 hover:text-rose-400 text-slate-600"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ""}
+        </div>
+      </div>
+      <h4 class="text-sm font-semibold mb-2">${esc(t.title)}</h4>
+      <div class="space-y-2 mt-4">
+        <div class="flex items-center justify-between text-[10px] text-slate-500">
+          <div class="flex items-center gap-1.5"><i data-lucide="tag" class="w-3 h-3"></i>${esc(t.module||"General")}</div>
+          <span class="font-mono">${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ""}</span>
+        </div>
+        <div class="flex items-center justify-between text-[10px]">
+          <div class="flex items-center gap-1.5 ${overdue?"text-rose-400":"text-slate-400"}"><i data-lucide="clock-3" class="w-3 h-3"></i><span>${deadline ? esc(this.formatDateTime(deadline)) : "No deadline"}</span></div>
+          ${overdue ? '<span class="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold uppercase">Overdue</span>' : ""}
+        </div>
+      </div>
+      ${advanceLabel && hasPermission ? `<button onclick="App.moveTask('${esc(t.id)}','${esc(nextStatus)}')" class="mt-4 w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg text-[10px] font-bold text-indigo-400 transition-all opacity-0 group-hover:opacity-100">${esc(advanceLabel)}</button>` : ""}
+    </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: MY WORK
+  // ──────────────────────────────────────────────
+  renderMyWork(el, query = "") {
+    const u = state.currentUser;
+    if (!u) { el.innerHTML = '<div class="text-slate-500 text-sm text-center py-10">Please login.</div>'; return; }
+    const myId = u.id;
+    const myTasks = state.tasks.filter(t => t.assigneeId === myId && (!query || (t.title||"").toLowerCase().includes(query)));
+    const done = myTasks.filter(t=>t.status==="done").length;
+    const progress = myTasks.length ? Math.round((done/myTasks.length)*100) : 0;
+    const myFeed = state.feed.filter(f=>f.userId===myId).slice().reverse().slice(0,5);
+    const meetings = this.getProjectMeetings().slice().sort((a,b)=>new Date(this.getMeetingStart(a))-new Date(this.getMeetingStart(b))).slice(0,5);
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">My Work Dashboard</h2><p class="text-slate-400 mt-1">Personal productivity center.</p></div></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        ${this.kpiCard("Assigned", myTasks.length, "briefcase", "indigo")}
+        ${this.kpiCard("Backlog", myTasks.filter(t=>t.status==="todo").length, "list-todo", "amber")}
+        ${this.kpiCard("In Progress", myTasks.filter(t=>t.status==="doing").length, "play", "indigo")}
+        ${this.kpiCard("Review", myTasks.filter(t=>t.status==="review").length, "shield-check", "rose")}
+        ${this.kpiCard("Completed", done, "check-circle", "emerald")}
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-6">
+          <div class="glass p-6 rounded-3xl">
+            <div class="flex items-center justify-between mb-5"><h3 class="font-bold">My Assigned Tasks</h3><span class="text-xs text-indigo-400 font-bold">${progress}% completed</span></div>
+            <div class="space-y-3">
+              ${myTasks.length ? myTasks.map(t => {
+                const dl = this.getTaskDeadline(t);
+                const overdue = dl && t.status!=="done" && this.isPast(dl) && !this.isToday(dl);
+                return `<div class="bg-slate-900/40 border border-white/5 p-4 rounded-2xl flex items-center justify-between gap-4"><div><h4 class="text-sm font-semibold">${esc(t.title)}</h4><p class="text-xs text-slate-500 mt-1">${esc(t.module)} • ${esc(t.priority)}</p><p class="text-xs mt-1 ${overdue?"text-rose-400":"text-slate-500"}">Deadline: ${dl ? esc(this.formatDateTime(dl)) : "Not set"}</p></div><span class="text-[10px] px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold uppercase">${esc(t.status)}</span></div>`;
+              }).join("") : `<div class="text-slate-500 text-sm text-center py-8">No assigned tasks.</div>`}
+            </div>
+          </div>
+          <div class="glass p-6 rounded-3xl">
+            <h3 class="font-bold mb-4">My Recent Updates</h3>
+            <div class="space-y-3">
+              ${myFeed.length ? myFeed.map(f=>`<div class="bg-slate-900/40 border border-white/5 p-4 rounded-2xl"><p class="text-sm text-slate-300">${esc(f.content)}</p><div class="mt-3 flex items-center justify-between"><span class="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-full border border-indigo-500/20 font-bold">Progress: ${Number(f.progress||0)}%</span><span class="text-[10px] text-slate-500">${f.timestamp ? new Date(f.timestamp).toLocaleString() : ""}</span></div></div>`).join("") : `<div class="text-slate-500 text-sm text-center py-8">No feed entries.</div>`}
+            </div>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-3xl">
+          <div class="relative w-36 h-36 mx-auto mb-6">
+            <svg class="w-full h-full transform -rotate-90"><circle cx="72" cy="72" r="60" stroke="currentColor" stroke-width="8" fill="transparent" class="text-white/5"/><circle cx="72" cy="72" r="60" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="377" stroke-dashoffset="${377-(377*progress/100)}" class="text-indigo-500 transition-all duration-1000"/></svg>
+            <div class="absolute inset-0 flex items-center justify-center flex-col"><span class="text-3xl font-black">${progress}%</span><span class="text-[10px] uppercase text-slate-500 font-bold">My Progress</span></div>
+          </div>
+          <h3 class="font-bold mb-4">Latest Meetings</h3>
+          <div class="space-y-3">
+            ${meetings.length ? meetings.map(m=>`<div class="bg-slate-900/40 border border-white/5 p-3 rounded-2xl"><p class="text-sm font-semibold">${esc(m.title)}</p><p class="text-[10px] text-slate-500 mt-1">${esc(this.formatDateTime(this.getMeetingStart(m)))}</p></div>`).join("") : `<div class="text-slate-500 text-sm text-center py-4">No meetings.</div>`}
+          </div>
+          <h3 class="font-bold mt-8 mb-4">My Alerts</h3>
+          <div class="space-y-3">
+            ${this.getMyNotifications().slice().reverse().slice(0,4).map(n=>`<div class="bg-slate-900/40 border ${n.read?"border-white/5":"border-indigo-500/20"} p-3 rounded-2xl"><p class="text-sm font-semibold ${n.read?"text-slate-300":"text-indigo-400"}">${esc(n.title)}</p><p class="text-xs text-slate-500 mt-1">${esc(n.message)}</p></div>`).join("") || `<div class="text-slate-500 text-sm text-center py-4">No alerts.</div>`}
+          </div>
+        </div>
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: FEED
+  // ──────────────────────────────────────────────
+  renderFeed(el, query = "") {
+    const filtered = this.getProjectFeed().filter(f=>(f.content||"").toLowerCase().includes(query));
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Team Log</h2><p class="text-slate-400 mt-1">Daily updates from the unit.</p></div><button onclick="App.openModal('update')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold">Post Entry</button></div>
+      <div class="max-w-3xl mx-auto space-y-6">
+        ${filtered.length ? filtered.slice().reverse().map(f => {
+          const hasPermission = this.canModify(f, "userId");
+          return `<div class="glass p-6 rounded-3xl relative group"><div class="flex gap-4"><div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 flex-shrink-0 flex items-center justify-center font-bold text-lg">${esc((f.userName||"U").charAt(0))}</div><div class="flex-1"><div class="flex items-center justify-between mb-1"><h4 class="font-bold">${esc(f.userName)} <span class="text-xs font-normal text-slate-500 ml-2">@${esc(f.module)}</span></h4><div class="flex items-center gap-2"><span class="text-[10px] font-mono text-slate-500">${f.timestamp ? new Date(f.timestamp).toLocaleString() : ""}</span>${hasPermission ? `<button onclick="App.deleteFeedItem('${esc(f.id)}')" class="p-1 hover:text-rose-400 text-slate-600 opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : ""}</div></div><p class="text-sm text-slate-300 leading-relaxed">${esc(f.content)}</p><div class="mt-4 flex flex-wrap gap-2"><span class="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-full border border-indigo-500/20 font-bold">Progress: ${Number(f.progress||0)}%</span>${f.blockers ? `<span class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-1 rounded-full border border-rose-500/20 font-bold">Blocked: ${esc(f.blockers)}</span>` : ""}</div></div></div></div>`;
+        }).join("") : `<div class="flex flex-col items-center justify-center py-20 text-slate-600 space-y-4"><i data-lucide="ghost" class="w-12 h-12"></i><p class="font-bold uppercase tracking-widest text-xs">No signals received.</p></div>`}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: CHAT
+  // ──────────────────────────────────────────────
+  renderChat(el, query = "") {
+    const u = state.currentUser;
+    if (!u) { el.innerHTML = '<div class="text-slate-500 text-sm text-center py-10">Please login.</div>'; return; }
+    const filtered = this.getProjectChats().filter(c =>
+      (c.message||"").toLowerCase().includes(query) || (c.userName||"").toLowerCase().includes(query)
+    );
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8">
+        <div><h2 class="text-3xl font-bold">Team Chat</h2><p class="text-slate-400 mt-1">Real-time team communication.</p></div>
+        <button onclick="App.markChatSeen()" class="glass hover:bg-white/5 px-4 py-2 rounded-xl text-xs font-bold text-slate-300">Mark Seen</button>
+      </div>
+      <div class="glass rounded-3xl overflow-hidden border border-white/5">
+        <div id="chat-messages" class="chat-scroll h-[60vh] overflow-y-auto p-6 space-y-4 bg-slate-950/30">
+          ${filtered.length ? filtered.map(msg => {
+            const mine = msg.userId === u.id;
+            const canDelete = mine || this.isLead();
+            return `<div class="flex ${mine?"justify-end":"justify-start"}"><div class="max-w-xl ${mine?"bg-indigo-600/20 border-indigo-500/30":"bg-slate-800/60 border-white/10"} border rounded-2xl px-4 py-3 shadow-lg"><div class="flex items-center justify-between gap-4 mb-1"><span class="text-xs font-bold ${mine?"text-indigo-300":"text-cyan-300"}">${esc(msg.userName)}</span><div class="flex items-center gap-2"><span class="text-[10px] text-slate-500">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ""}</span>${canDelete ? `<button onclick="App.deleteChat('${esc(msg.id)}')" class="text-slate-500 hover:text-rose-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ""}</div></div><p class="text-sm text-slate-200 whitespace-pre-wrap break-words">${esc(msg.message)}</p></div></div>`;
+          }).join("") : `<div class="h-full flex flex-col items-center justify-center text-slate-500"><i data-lucide="messages-square" class="w-12 h-12 mb-3 opacity-30"></i><p class="text-sm font-semibold">No messages yet</p></div>`}
+        </div>
+        <!-- FIX: chat input now directly binds oninput to update state.chatDraft -->
+        <form onsubmit="App.sendChat(event)" class="p-4 border-t border-white/5 bg-slate-900/40 flex gap-3">
+          <input id="chat-input" name="message" required autocomplete="off" oninput="state.chatDraft=this.value" class="flex-1 bg-slate-900/60 border border-white/10 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" placeholder="Type a message...">
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-5 py-3 rounded-2xl text-sm font-bold flex items-center gap-2"><i data-lucide="send" class="w-4 h-4"></i> Send</button>
+        </form>
+      </div>`;
+    // FIX: Scroll after render
+    requestAnimationFrame(() => this.scrollChatToBottom());
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: NOTIFICATIONS
+  // ──────────────────────────────────────────────
+  renderNotifications(el, query = "") {
+    const myNotifs = this.getMyNotifications().filter(n =>
+      (n.title||"").toLowerCase().includes(query) || (n.message||"").toLowerCase().includes(query)
+    );
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8">
+        <div><h2 class="text-3xl font-bold">Notifications</h2><p class="text-slate-400 mt-1">Activity alerts and signals.</p></div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="App.markAllNotificationsRead()" class="glass hover:bg-white/5 px-4 py-2 rounded-xl text-xs font-bold text-slate-300">Mark All Read</button>
+          <button onclick="App.deleteAllMyNotifications()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-xl text-xs font-bold text-white">Delete All</button>
+        </div>
+      </div>
+      <div class="space-y-4">
+        ${myNotifs.length ? myNotifs.slice().reverse().map(n => `<div class="glass p-5 rounded-3xl border ${n.read?"border-white/5":"border-indigo-500/20"}"><div class="flex items-start justify-between gap-4"><div class="flex items-start gap-3 flex-1">${n.read ? '<div class="w-2 h-2 mt-2 rounded-full bg-slate-600"></div>' : '<div class="notification-dot mt-2"></div>'}<div class="flex-1"><h4 class="font-bold text-sm ${n.read?"text-slate-300":"text-indigo-400"}">${esc(n.title)}</h4><p class="text-sm text-slate-400 mt-1">${esc(n.message)}</p><span class="text-[10px] text-slate-500 font-mono mt-2 inline-block">${n.timestamp ? new Date(n.timestamp).toLocaleString() : ""}</span></div></div><div class="flex items-center gap-2">${!n.read ? `<button onclick="App.markNotificationRead('${esc(n.id)}')" class="text-xs px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Mark Read</button>` : '<span class="text-[10px] text-emerald-400 font-bold">READ</span>'}<button onclick="App.deleteNotification('${esc(n.id)}')" class="text-xs px-3 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20">Delete</button></div></div></div>`).join("") : `<div class="py-20 text-center glass rounded-3xl"><p class="text-slate-500 uppercase font-bold text-xs tracking-widest">No notifications</p></div>`}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: MILESTONES
+  // ──────────────────────────────────────────────
+  renderMilestones(el, query = "") {
+    const filtered = this.getProjectMilestones().filter(m=>(m.title||"").toLowerCase().includes(query));
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Strategic Milestones</h2><p class="text-slate-400 mt-1">High-level objectives and phase markers.</p></div><button onclick="App.openModal('milestone')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="flag" class="w-4 h-4"></i> Add Milestone</button></div>
+      <div class="space-y-4">
+        ${filtered.length ? filtered.map(m => {
+          const hasPermission = this.canModify(m);
+          return `<div class="glass p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 group"><div class="flex-1"><div class="flex items-center gap-3 mb-1"><h4 class="text-xl font-bold">${esc(m.title)}</h4><span class="text-[10px] px-2 py-0.5 rounded border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 font-bold uppercase">${esc(m.date)}</span></div><p class="text-sm text-slate-400 mb-4">${esc(m.description)}</p><div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-indigo-500 h-full transition-all duration-1000" style="width:${Number(m.progress||0)}%"></div></div></div><div class="flex items-center gap-4"><div class="text-right"><span class="text-3xl font-black text-indigo-400">${Number(m.progress||0)}%</span><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Completion</p>${hasPermission ? `<button onclick="App.openModal('editMilestone','${esc(m.id)}')" class="mt-2 text-[10px] bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-lg border border-indigo-500/20 font-bold">Update</button>` : ""}</div>${hasPermission ? `<button onclick="App.deleteMilestone('${esc(m.id)}')" class="p-2 hover:text-rose-400 text-slate-700 opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="trash-2" class="w-5 h-5"></i></button>` : ""}</div></div>`;
+        }).join("") : `<div class="py-20 text-center glass rounded-3xl border-dashed"><p class="text-slate-500 uppercase font-bold text-xs tracking-widest">No milestones defined</p></div>`}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: TEAM
+  // ──────────────────────────────────────────────
+  renderTeam(el, query = "") {
+    const filtered = state.users.filter(u =>
+      (u.name||"").toLowerCase().includes(query) || (u.role||"").toLowerCase().includes(query) || (u.module||"").toLowerCase().includes(query)
+    );
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Unit Registry</h2><p class="text-slate-400 mt-1">Team members and role configurations.</p></div>${this.isLead() ? `<button onclick="App.openModal('user')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Add Member</button>` : ""}</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ${filtered.map(u => `<div class="glass p-6 rounded-3xl group"><div class="flex items-center gap-4 mb-4"><div class="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-2xl font-bold text-indigo-400 ring-2 ring-white/5 group-hover:ring-indigo-500/50 transition-all">${esc((u.name||"U").charAt(0))}</div><div><h4 class="text-lg font-bold">${esc(u.name)}</h4><p class="text-xs text-indigo-400 font-bold uppercase tracking-tighter">${esc(u.role)}</p></div></div><div class="space-y-2 mt-6"><div class="flex justify-between text-xs"><span class="text-slate-500">Email</span><span class="font-mono text-xs">${esc(u.email||u.username||"-")}</span></div><div class="flex justify-between text-xs"><span class="text-slate-500">Domain</span><span class="font-semibold">${esc(u.module)}</span></div></div>${this.isLead() && u.id !== state.currentUser.id ? `<button onclick="App.deleteUser('${esc(u.id)}')" class="mt-6 w-full py-2 border border-rose-500/20 text-rose-500 text-xs font-bold rounded-xl hover:bg-rose-500/10 transition-colors">Terminate Access</button>` : ""}</div>`).join("")}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: DOCS
+  // ──────────────────────────────────────────────
+  renderDocs(el, query = "") {
+    const filtered = this.getProjectDocs().filter(d =>
+      (d.title||"").toLowerCase().includes(query) || (d.url||"").toLowerCase().includes(query) || (d.fileName||"").toLowerCase().includes(query)
+    );
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Knowledge Base</h2><p class="text-slate-400 mt-1">Documents, assets, and resources.</p></div><button onclick="App.openModal('doc')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Add Resource</button></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ${filtered.length ? filtered.map(d => {
+          const hasPermission = this.canModify(d);
+          const meta = this.getFileMeta(d);
+          const openLink = this.getDocOpenLink(d);
+          return `<div class="glass-card p-6 rounded-3xl flex flex-col justify-between group"><div><div class="flex justify-between items-start mb-4"><div class="w-12 h-12 rounded-2xl bg-slate-900/60 flex items-center justify-center ${meta.color}"><i data-lucide="${meta.icon}" class="w-6 h-6"></i></div><div class="flex items-center gap-2"><span class="text-[10px] px-2 py-1 rounded-full border border-white/10 bg-slate-900/50 text-slate-300 font-bold uppercase">${esc(meta.label)}</span>${hasPermission ? `<button onclick="App.deleteDoc('${esc(d.id)}')" class="p-1.5 hover:text-rose-400 text-slate-600 opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ""}</div></div><h4 class="font-bold text-lg mb-2 break-words">${esc(d.title)}</h4><p class="text-xs text-slate-500 break-all">${esc(d.fileName||d.url||"No source")}</p><div class="mt-4 space-y-1 text-[11px] text-slate-500"><p>By: ${esc(d.uploadedBy||"Unknown")}</p><p>Added: ${d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "-"}</p></div></div><div class="mt-6 flex gap-2"><a href="${esc(openLink)}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold transition-all">Open</a></div></div>`;
+        }).join("") : `<div class="md:col-span-3 py-20 text-center glass rounded-3xl border-dashed"><p class="text-slate-500 uppercase font-bold text-xs tracking-widest">No resources found</p></div>`}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: MEETINGS
+  // ──────────────────────────────────────────────
+  renderMeetings(el, query = "") {
+    const filtered = this.getProjectMeetings().filter(m =>
+      (m.title||"").toLowerCase().includes(query) || (m.notes||"").toLowerCase().includes(query)
+    );
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Meeting Logs</h2><p class="text-slate-400 mt-1">Agenda and session planning.</p></div><button onclick="App.openModal('meeting')" class="bg-indigo-600 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Log Session</button></div>
+      <div class="space-y-4">
+        ${filtered.length ? filtered.slice().sort((a,b)=>new Date(this.getMeetingStart(a))-new Date(this.getMeetingStart(b))).map(m => {
+          const hasPermission = this.canModify(m);
+          const start = this.getMeetingStart(m);
+          const end = this.getMeetingEnd(m);
+          return `<div class="glass p-6 rounded-3xl group"><div class="flex items-center justify-between mb-4"><div><span class="text-[10px] font-bold uppercase tracking-widest text-indigo-400">${esc(this.formatDateTime(start))}</span><h4 class="text-xl font-bold mt-1">${esc(m.title)}</h4>${m.link ? `<a href="${esc(m.link)}" target="_blank" class="text-xs text-cyan-400 hover:text-cyan-300">Open meeting link</a>` : ""}</div><div class="flex items-center gap-3">${hasPermission ? `<button onclick="App.deleteMeeting('${esc(m.id)}')" class="p-2 hover:text-rose-400 text-slate-700 opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="trash-2" class="w-5 h-5"></i></button>` : ""}</div></div><div class="grid md:grid-cols-3 gap-4 mb-4"><div class="bg-slate-900/40 p-4 rounded-xl border border-white/5"><p class="text-[10px] uppercase font-bold text-slate-500">Start</p><p class="text-sm font-semibold mt-1">${start ? esc(this.formatDateTime(start)) : "-"}</p></div><div class="bg-slate-900/40 p-4 rounded-xl border border-white/5"><p class="text-[10px] uppercase font-bold text-slate-500">End</p><p class="text-sm font-semibold mt-1">${end ? esc(this.formatDateTime(end)) : "-"}</p></div><div class="bg-slate-900/40 p-4 rounded-xl border border-white/5"><p class="text-[10px] uppercase font-bold text-slate-500">Location</p><p class="text-sm font-semibold mt-1">${esc(m.location||"Online")}</p></div></div><div class="bg-slate-900/40 p-4 rounded-xl border border-white/5"><p class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">${esc(m.notes)}</p></div></div>`;
+        }).join("") : `<div class="py-20 text-center glass rounded-3xl border-dashed"><p class="text-slate-500 uppercase font-bold text-xs tracking-widest">No session logs</p></div>`}
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: ATTENDANCE
+  // ──────────────────────────────────────────────
+  renderAttendance(el) {
+    const today = this.getTodayDateString();
+    const myRecord = state.attendance.find(a => a.userId === state.currentUser.id && a.date === today);
+    const isLead = this.isLead();
+
+    if (!isLead) {
+      el.innerHTML = `
+        <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Daily Check-in</h2><p class="text-slate-400 mt-1">Track your attendance.</p></div></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="glass p-6 rounded-3xl">
+            <h3 class="font-bold mb-4">My Status</h3>
+            ${myRecord ? `<div class="space-y-3"><div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4"><p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Status</p><p class="text-lg font-bold mt-1 text-indigo-300">${esc(myRecord.status||"Present")}</p></div><div class="grid grid-cols-2 gap-4"><div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4"><p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Check-in</p><p class="text-lg font-bold mt-1">${esc(myRecord.checkIn||"-")}</p></div><div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4"><p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Check-out</p><p class="text-lg font-bold mt-1">${esc(myRecord.checkOut||"-")}</p></div></div></div>` : `<div class="bg-slate-900/40 border border-white/5 rounded-2xl p-6 text-center"><p class="text-slate-400 mb-4">Not checked in yet.</p><button onclick="App.checkIn()" class="bg-green-600 hover:bg-green-500 px-5 py-3 rounded-xl font-semibold">Check In</button></div>`}
+            ${myRecord && !myRecord.checkOut ? `<button onclick="App.checkOut()" class="bg-red-600 hover:bg-red-500 px-5 py-3 rounded-xl mt-4 font-semibold">Check Out</button>` : ""}
+          </div>
+          <div class="glass p-6 rounded-3xl">
+            <h3 class="font-bold mb-4">Today's Summary</h3>
+            <textarea id="summary" class="w-full bg-slate-900/50 p-4 rounded-2xl border border-white/10 min-h-[180px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30" placeholder="What did you complete today...">${esc(myRecord?.summary||"")}</textarea>
+            <button onclick="App.saveSummary()" class="mt-4 bg-indigo-600 hover:bg-indigo-500 px-5 py-3 rounded-xl font-semibold">Save Summary</button>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const analytics = this.getAttendanceAnalytics();
+    const nonLeadIds = new Set(this.getNonLeadUsers().map(u => u.id));
+    const todayRecords = this.getTodayAttendanceRecords().filter(r => nonLeadIds.has(r.userId));
+    const absentUsers = this.getAbsentUsersToday();
+
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-8"><div><h2 class="text-3xl font-bold">Attendance Command Center</h2><p class="text-slate-400 mt-1">Monitor team attendance.</p></div></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+        ${this.kpiCard("Team Size", analytics.totalMembers, "users", "indigo")}
+        ${this.kpiCard("Present", analytics.present, "user-check", "emerald")}
+        ${this.kpiCard("Checked Out", analytics.checkedOut, "log-out", "amber")}
+        ${this.kpiCard("Active Now", analytics.activeNow, "activity", "indigo")}
+        ${this.kpiCard("Absent", analytics.absent, "user-x", "rose")}
+        ${this.kpiCard("Late Arrivals", analytics.lateArrivals, "clock-3", "amber")}
+      </div>
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="glass p-6 rounded-3xl xl:col-span-2">
+          <div class="flex items-center justify-between mb-4"><h3 class="font-bold">Today's List</h3><span class="text-xs text-indigo-400 font-bold">${esc(today)}</span></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="text-left text-slate-500 border-b border-white/5"><th class="py-3 pr-4">Member</th><th class="py-3 pr-4">Check-in</th><th class="py-3 pr-4">Check-out</th><th class="py-3 pr-4">Status</th><th class="py-3">Summary</th></tr></thead>
+              <tbody>
+                ${todayRecords.length ? todayRecords.map(r => {
+                  const user = state.users.find(u => u.id === r.userId) || {};
+                  const isActive = r.checkIn && !r.checkOut;
+                  return `<tr class="border-b border-white/5 align-top"><td class="py-4 pr-4 font-semibold">${esc(r.userName||user.name||"?")}</td><td class="py-4 pr-4">${esc(r.checkIn||"-")}</td><td class="py-4 pr-4">${esc(r.checkOut||"-")}</td><td class="py-4 pr-4"><span class="text-[10px] px-3 py-1 rounded-full border font-bold uppercase ${isActive?"bg-emerald-500/10 text-emerald-400 border-emerald-500/20":"bg-slate-700/30 text-slate-300 border-white/10"}">${isActive?"Active":"Done"}</span></td><td class="py-4 text-slate-400 text-xs max-w-[260px]">${esc(r.summary)||'<span class="text-slate-600 italic">No summary</span>'}</td></tr>`;
+                }).join("") : `<tr><td colspan="5" class="py-10 text-center text-slate-500">No records today.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="space-y-6">
+          <div class="glass p-6 rounded-3xl">
+            <h3 class="font-bold mb-4 text-rose-400">Absent Members</h3>
+            <div class="space-y-3">
+              ${absentUsers.length ? absentUsers.map(u=>`<div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between"><div><p class="text-sm font-semibold">${esc(u.name)}</p><p class="text-xs text-slate-500 mt-1">${esc(u.module||"General")}</p></div><span class="text-[10px] px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold uppercase">Absent</span></div>`).join("") : `<div class="text-center text-slate-500 py-6 text-sm">Everyone is present!</div>`}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: SUMMARY
+  // ──────────────────────────────────────────────
+  renderSummary(el) {
+    const summary = state.projectSummary;
+    const isLead = this.isLead();
+    const progress = this.getOverallProjectProgress();
+    const health = this.getProjectHealthLabel();
+    const tasks = this.getProjectTasks();
+    const totalTasks = tasks.length;
+    const doneTasks = tasks.filter(t=>t.status==="done").length;
+    const activeTasks = tasks.filter(t=>t.status!=="done").length;
+    const overdueTasks = tasks.filter(t => {
+      const dl = this.getTaskDeadline(t);
+      return dl && t.status !== "done" && this.isPast(dl) && !this.isToday(dl);
+    }).length;
+    const topOwners = this.getTopOwners();
+    const roadmap = summary.roadmap || [];
+    const risks = summary.risks || [];
+
+    el.innerHTML = `
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+        <div><h2 class="text-3xl font-bold">Project Summary</h2><p class="text-slate-400 mt-1">Command center for roadmap, health, and ownership.</p></div>
+        <div class="flex gap-2 flex-wrap">
+          ${isLead ? `<button onclick="App.openModal('summaryConfig')" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="settings-2" class="w-4 h-4"></i> Update Summary</button>
+          <button onclick="App.openModal('roadmapItem')" class="glass hover:bg-white/5 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="git-branch-plus" class="w-4 h-4"></i> Add Roadmap</button>
+          <button onclick="App.openModal('riskItem')" class="glass hover:bg-white/5 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="shield-alert" class="w-4 h-4"></i> Add Risk</button>` : `<div class="px-4 py-2.5 rounded-xl text-xs font-bold border border-white/10 text-slate-400 bg-slate-900/40">View Only</div>`}
+        </div>
+      </div>
+      <div class="glass rounded-3xl p-6 md:p-8 mb-8 bg-gradient-to-br from-indigo-500/10 via-slate-900/30 to-cyan-500/5 border border-indigo-500/10">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8 items-center">
+          <div class="xl:col-span-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 text-indigo-300 text-[11px] font-bold uppercase tracking-widest mb-4"><i data-lucide="rocket" class="w-3.5 h-3.5"></i>${esc(summary.projectName||"Project")}</div>
+            <h3 class="text-2xl md:text-3xl font-bold">${esc(summary.currentPhase||"Planning")} Phase</h3>
+            <p class="text-slate-400 mt-3 text-sm">${esc(summary.vision||"Add your project vision.")}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+              <div class="bg-slate-950/40 border border-white/5 rounded-2xl p-4"><p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Owner</p><p class="text-lg font-bold mt-2">${esc(summary.projectOwner||"-")}</p></div>
+              <div class="bg-slate-950/40 border border-white/5 rounded-2xl p-4"><p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Release</p><p class="text-lg font-bold mt-2">${esc(summary.targetRelease||"-")}</p></div>
+              <div class="bg-slate-950/40 border border-white/5 rounded-2xl p-4"><p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">Health</p><p class="text-lg font-bold mt-2 ${health.color}">${esc(health.label)}</p></div>
+            </div>
+          </div>
+          <div class="flex flex-col items-center">
+            <div class="relative w-40 h-40">
+              <svg class="w-full h-full transform -rotate-90"><circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="8" fill="transparent" class="text-white/5"></circle><circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="8" fill="transparent" stroke-dasharray="440" stroke-dashoffset="${440-(440*progress/100)}" class="text-indigo-500 transition-all duration-1000"></circle></svg>
+              <div class="absolute inset-0 flex items-center justify-center flex-col"><span class="text-4xl font-black">${progress}%</span><span class="text-[10px] uppercase text-slate-500 font-bold">Completion</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        ${this.kpiCard("Total Tasks", totalTasks, "layers", "indigo")}
+        ${this.kpiCard("Completed", doneTasks, "check-circle", "emerald")}
+        ${this.kpiCard("Active", activeTasks, "activity", "amber")}
+        ${this.kpiCard("Overdue", overdueTasks, "alert-triangle", "rose")}
+      </div>
+      <div class="glass rounded-3xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-5"><h3 class="font-bold flex items-center gap-2"><i data-lucide="map" class="w-4 h-4 text-indigo-400"></i> Product Roadmap</h3><span class="text-xs text-slate-500 font-bold uppercase">${isLead?"Drag between stages":"View only"}</span></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          ${["todo","doing","done"].map(status => `<div class="bg-slate-900/30 rounded-2xl border border-white/5 p-4 min-h-[280px]" ondragover="event.preventDefault()" ondrop="App.handleRoadmapDrop(event,'${status}')">
+            <div class="flex items-center justify-between mb-4"><h4 class="text-sm font-bold uppercase tracking-wider ${status==="todo"?"text-slate-400":status==="doing"?"text-indigo-400":"text-emerald-400"}">${status==="todo"?"Planned":status==="doing"?"In Progress":"Completed"}</h4><span class="text-[10px] px-2 py-1 rounded-full bg-slate-800 text-slate-400">${roadmap.filter(r=>r.status===status).length}</span></div>
+            <div class="space-y-3">
+              ${roadmap.filter(r=>r.status===status).map(item => `<div class="bg-slate-950/50 border border-white/5 rounded-2xl p-4 ${isLead?"cursor-grab":""}" draggable="${isLead}" ondragstart="App.handleRoadmapDragStart(event,'${esc(item.id)}')"><div class="flex items-start justify-between gap-3"><div><h5 class="text-sm font-bold">${esc(item.phase)}</h5><p class="text-xs text-slate-500 mt-2">${esc(item.description||"")}</p><p class="text-[11px] text-slate-400 mt-2">${esc(item.start||"-")} ${item.end?"→ "+esc(item.end):""}</p></div>${isLead ? `<button onclick="App.deleteRoadmapItem('${esc(item.id)}')" class="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20">Del</button>` : ""}</div></div>`).join("")}
+              ${roadmap.filter(r=>r.status===status).length===0 ? '<div class="text-center py-10 text-slate-600 text-xs uppercase font-bold italic">No items</div>' : ""}
+            </div>
+          </div>`).join("")}
+        </div>
+      </div>
+      <div class="space-y-6">
+        <div class="glass rounded-3xl p-6"><h3 class="font-bold mb-4">Weekly Focus</h3><div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4 text-sm text-slate-300 leading-relaxed">${esc(summary.weeklyFocus||"Set a weekly focus.")}</div></div>
+        <div class="glass rounded-3xl p-6"><h3 class="font-bold mb-4">Launch Goal</h3><div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4 text-sm text-slate-300 leading-relaxed">${esc(summary.launchGoal||"Add launch goal.")}</div></div>
+        <div class="glass rounded-3xl p-6"><div class="flex items-center justify-between mb-4"><h3 class="font-bold flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i> AI Project Summary</h3><button onclick="App.refreshAISummary()" class="text-xs text-indigo-400 font-bold hover:text-indigo-300">Refresh</button></div><div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4"><p class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">${esc(state.aiSummary?.text||"No summary yet. Click Refresh.")}</p>${state.aiSummary?.generatedAt ? `<p class="text-[10px] text-slate-500 mt-4">Generated: ${esc(state.aiSummary.generatedAt)}</p>` : ""}</div></div>
+        <div class="glass rounded-3xl p-6"><h3 class="font-bold mb-4 text-rose-400">Risk Register</h3><div class="space-y-3">${risks.length ? risks.map(r=>`<div class="bg-slate-900/40 border ${r.level==="high"?"border-rose-500/20":"border-white/5"} rounded-2xl p-4 flex items-center justify-between gap-4"><div><h4 class="text-sm font-bold">${esc(r.title)}</h4><p class="text-xs text-slate-500 mt-1">${esc(r.description||"")}</p><p class="text-xs text-slate-400 mt-1">Owner: ${esc(r.owner||"-")}</p></div><div class="flex items-center gap-2"><span class="text-[10px] px-3 py-1 rounded-full font-bold uppercase ${r.level==="high"?"bg-rose-500/10 text-rose-400 border border-rose-500/20":r.level==="medium"?"bg-amber-500/10 text-amber-400 border border-amber-500/20":"bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}">${esc(r.level)}</span>${isLead ? `<button onclick="App.deleteRiskItem('${esc(r.id)}')" class="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20">Del</button>` : ""}</div></div>`).join("") : `<div class="text-center py-8 text-slate-500 text-sm">No risks recorded.</div>`}</div></div>
+        <div class="glass rounded-3xl p-6"><h3 class="font-bold mb-4">Owner Progress</h3><div class="space-y-3">${topOwners.length ? topOwners.map(o=>`<div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4"><div class="flex items-center justify-between text-sm mb-2"><span class="font-semibold">${esc(o.name)}</span><span class="text-indigo-300 font-bold">${o.progress}%</span></div><div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden"><div class="bg-indigo-500 h-full" style="width:${o.progress}%"></div></div><p class="text-[11px] text-slate-500 mt-2">${o.done}/${o.total} completed</p></div>`).join("") : `<div class="text-center py-8 text-slate-500 text-sm">No data yet.</div>`}</div></div>
+      </div>`;
+  },
+
+  // ──────────────────────────────────────────────
+  // RENDER: CALENDAR
+  // ──────────────────────────────────────────────
+  renderCalendar(el) {
+    const month = state.calendarMonth;
+    const year = state.calendarYear;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startWeekDay = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const monthLabel = new Date(year, month).toLocaleString([], {month:"long", year:"numeric"});
+    const todayStr = this.toLocalDateString(new Date());
+    const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    const cells = [];
+    for (let i = 0; i < startWeekDay; i++) cells.push({ dateObj: new Date(year, month-1, prevMonthLastDay-startWeekDay+i+1), outside: true });
+    for (let day = 1; day <= daysInMonth; day++) cells.push({ dateObj: new Date(year, month, day), outside: false });
+    while (cells.length % 7 !== 0) cells.push({ dateObj: new Date(year, month+1, cells.length-(startWeekDay+daysInMonth)+1), outside: true });
+
+    const selectedEvents = this.getCalendarEventsForDate(state.selectedCalendarDate);
+    const overdueTasks = this.getProjectTasks().filter(t => {
+      const dl = this.getTaskDeadline(t);
+      return dl && t.status!=="done" && this.isPast(dl) && !this.isToday(dl);
+    }).map(t => ({ title:t.title, module:t.module||"Task", rawDate:this.getTaskDeadline(t) }));
+    const todayItems = this.getCalendarEventsForDate(todayStr);
+    const nextItems = this.getUpcomingItems(14).slice(0,10);
+
+    el.innerHTML = `
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+        <div><h2 class="text-3xl font-bold">Deadlines & Calendar</h2><p class="text-slate-400 mt-1">Tasks, meetings, and milestones.</p></div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="App.openModal('task')" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Add Task</button>
+          <button onclick="App.openModal('meeting')" class="glass hover:bg-white/5 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"><i data-lucide="calendar-plus" class="w-4 h-4"></i> Add Meeting</button>
+          <button onclick="App.resetCalendarToday()" class="glass hover:bg-white/5 px-4 py-2.5 rounded-xl text-sm font-bold">Today</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 glass rounded-3xl p-4 md:p-6">
+          <div class="flex items-center justify-between mb-6">
+            <button onclick="App.changeCalendarMonth(-1)" class="w-10 h-10 rounded-xl bg-slate-900/50 border border-white/10 hover:bg-white/5 flex items-center justify-center"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+            <div class="text-center"><h3 class="text-xl font-bold">${esc(monthLabel)}</h3></div>
+            <button onclick="App.changeCalendarMonth(1)" class="w-10 h-10 rounded-xl bg-slate-900/50 border border-white/10 hover:bg-white/5 flex items-center justify-center"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+          </div>
+          <div class="grid grid-cols-7 gap-2 mb-2">${weekdays.map(d=>`<div class="text-center text-[11px] uppercase font-black tracking-widest text-slate-500 py-2">${d}</div>`).join("")}</div>
+          <div class="grid grid-cols-7 gap-2">
+            ${cells.map(cell => {
+              const dateStr = this.toLocalDateString(cell.dateObj);
+              const isSelected = dateStr === state.selectedCalendarDate;
+              const isToday = dateStr === todayStr;
+              const events = this.getCalendarEventsForDate(dateStr);
+              return `<button onclick="App.selectCalendarDate('${esc(dateStr)}')" class="calendar-day rounded-2xl border ${isSelected?"selected":"border-white/5"} ${isToday?"today":""} ${cell.outside?"opacity-45":""} bg-slate-900/30 text-left p-2 hover:border-indigo-500/30 transition-all"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold ${isToday?"text-indigo-300":"text-slate-300"}">${cell.dateObj.getDate()}</span>${events.length ? `<span class="text-[10px] text-slate-500">${events.length}</span>` : ""}</div><div class="space-y-1">${events.slice(0,3).map(ev=>`<div class="calendar-event ${ev.type}">${ev.type==="meeting"?"M":ev.type==="milestone"?"MS":ev.type==="overdue"?"OD":"T"} · ${esc(ev.title)}</div>`).join("")}${events.length>3 ? `<div class="text-[10px] text-slate-500">+${events.length-3} more</div>` : ""}</div></button>`;
+            }).join("")}
+          </div>
+        </div>
+        <div class="space-y-6">
+          <div class="glass rounded-3xl p-6">
+            <div class="flex items-center justify-between mb-4"><h3 class="font-bold">Selected Day</h3><span class="text-xs text-indigo-400 font-bold">${esc(this.formatDate(state.selectedCalendarDate))}</span></div>
+            <div class="space-y-3">${selectedEvents.length ? selectedEvents.map(item=>`<div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4"><div class="flex items-center justify-between gap-3"><p class="text-sm font-semibold">${esc(item.title)}</p><span class="calendar-event ${item.type}">${esc(item.type)}</span></div><p class="text-xs text-slate-500 mt-2">${esc(item.subtitle||"")}</p></div>`).join("") : `<div class="text-center text-slate-500 py-10 text-sm">No items for this day.</div>`}</div>
+          </div>
+          <div class="glass rounded-3xl p-6">
+            <h3 class="font-bold mb-4 text-rose-400">Overdue Tasks</h3>
+            <div class="space-y-3">${overdueTasks.length ? overdueTasks.slice(0,6).map(t=>`<div class="bg-slate-900/40 border border-rose-500/10 rounded-2xl p-4"><p class="text-sm font-semibold">${esc(t.title)}</p><p class="text-xs text-rose-400 mt-1">Due: ${esc(this.formatDateTime(t.rawDate))}</p></div>`).join("") : `<div class="text-center text-slate-500 py-6 text-sm">No overdue tasks.</div>`}</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div class="glass rounded-3xl p-6"><h3 class="font-bold mb-4">Today</h3><div class="space-y-3">${todayItems.length ? todayItems.map(item=>`<div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4"><div><p class="text-sm font-semibold">${esc(item.title)}</p><p class="text-xs text-slate-500 mt-1">${esc(item.subtitle||"")}</p></div><span class="calendar-event ${item.type}">${esc(item.type)}</span></div>`).join("") : `<div class="text-slate-500 text-sm py-8 text-center">Nothing today.</div>`}</div></div>
+        <div class="glass rounded-3xl p-6"><h3 class="font-bold mb-4">Upcoming</h3><div class="space-y-3">${nextItems.length ? nextItems.map(item=>`<div class="bg-slate-900/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4"><div><p class="text-sm font-semibold">${esc(item.title)}</p><p class="text-xs text-slate-500 mt-1">${esc(item.meta)}</p></div><span class="text-[11px] font-bold text-indigo-300">${esc(this.formatDateTime(item.date))}</span></div>`).join("") : `<div class="text-slate-500 text-sm py-8 text-center">No upcoming items.</div>`}</div></div>
+      </div>`;
+  },
+
+  changeCalendarMonth(step) {
+    state.calendarMonth += step;
+    if (state.calendarMonth < 0) { state.calendarMonth = 11; state.calendarYear -= 1; }
+    if (state.calendarMonth > 11) { state.calendarMonth = 0; state.calendarYear += 1; }
+    this.render("calendar");
+  },
+
+  resetCalendarToday() {
+    const now = new Date();
+    state.calendarMonth = now.getMonth();
+    state.calendarYear = now.getFullYear();
+    state.selectedCalendarDate = this.toLocalDateString(now);
+    this.render("calendar");
+  },
+
+  selectCalendarDate(dateStr) {
+    state.selectedCalendarDate = dateStr;
+    this.render("calendar");
+  },
+
+  // ──────────────────────────────────────────────
+  // MODALS
+  // ──────────────────────────────────────────────
+  openModal(type, targetId = null) {
+    const overlay = document.getElementById("modal-overlay");
+    const content = document.getElementById("modal-content");
+    if (!overlay || !content) return;
+    if (this.modalCloseTimer) clearTimeout(this.modalCloseTimer);
+    overlay.classList.remove("hidden");
+    overlay.classList.add("flex");
+    content.classList.add("scale-95", "opacity-0");
+
+    const views = {
+      task: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">New Task</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.createTask(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Title</label><input name="title" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Task title"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Priority</label><select name="priority" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Module</label><select name="module" required class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="UI/UX">UI/UX</option><option value="Frontend">Frontend</option><option value="Backend">Backend</option><option value="Integration">Integration</option><option value="Testing">Testing</option><option value="Management">Management</option></select></div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Assignee</label><select name="assigneeId" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm">${state.users.map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")}</select></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Status</label><select name="status" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="todo">Backlog</option><option value="doing">In Progress</option><option value="review">Quality Check</option><option value="done">Production</option></select></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Deadline</label><input name="deadline" type="datetime-local" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Create Task</button>
+        </form>`,
+
+      project: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Create Project</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.createProject(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Project Name</label><input name="name" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="My Project"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Project Code</label><input name="code" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="PRJ"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Initial Stage</label><input value="Upstream" disabled class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-400"></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Description</label><textarea name="description" rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Description..."></textarea></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Assign Members</label><div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto bg-slate-900/40 border border-white/10 rounded-2xl p-3">${state.users.map(u=>`<label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="memberIds" value="${esc(u.id)}" class="accent-indigo-500"><span>${esc(u.name)}</span></label>`).join("")}</div></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Create Project</button>
+        </form>`,
+
+      update: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Post Update</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.postUpdate(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Content</label><textarea name="content" required rows="4" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Describe current state..."></textarea></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Progress %</label><input name="progress" type="number" min="0" max="100" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" value="0"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Blockers</label><input name="blockers" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="None"></div>
+          </div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Post Log</button>
+        </form>`,
+
+      user: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Add Member</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.addUser(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Full Name</label><input name="name" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Full Name"></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Username</label><input name="email" type="text" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="e.g. johndoe (used to login)"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Password</label><input name="password" required type="text" autocomplete="new-password" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" value="welcome123"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Role</label><select name="role" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="member">Member</option><option value="lead">Lead</option></select></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Module</label><input name="module" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Frontend"></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Grant Access</button>
+        </form>`,
+
+      milestone: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">New Milestone</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.createMilestone(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Title</label><input name="title" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Phase 1 Release"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Target Date</label><input name="date" type="date" required class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Progress %</label><input name="progress" type="number" min="0" max="100" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" value="0"></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Description</label><textarea name="description" required rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></textarea></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Deploy Milestone</button>
+        </form>`,
+
+      doc: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Add Resource</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.createDoc(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Title</label><input name="title" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Project Proposal"></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">File Name (for reference)</label><input name="fileName" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="proposal.pdf"></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">External URL</label><input name="url" type="url" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="https://..."></div>
+          <p class="text-xs text-slate-500">Note: For file uploads, use Google Drive or similar and paste the link as URL.</p>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Publish Resource</button>
+        </form>`,
+
+      meeting: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Log Session</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.createMeeting(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Title</label><input name="title" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Sprint Planning"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Start</label><input name="startAt" type="datetime-local" required class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">End</label><input name="endAt" type="datetime-local" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Location</label><input name="location" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Google Meet"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Meeting Link</label><input name="link" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="https://meet.google.com/..."></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Notes</label><textarea name="notes" required rows="4" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Key points..."></textarea></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Commit Session</button>
+        </form>`,
+
+      summaryConfig: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Update Project Summary</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.saveSummaryConfig(event)" class="p-6 space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Project Name</label><input name="projectName" value="${esc(state.projectSummary.projectName||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Owner</label><input name="projectOwner" value="${esc(state.projectSummary.projectOwner||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Target Release</label><input name="targetRelease" type="date" value="${esc(state.projectSummary.targetRelease||"")}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Vision</label><textarea name="vision" rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm">${esc(state.projectSummary.vision||"")}</textarea></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Weekly Focus</label><textarea name="weeklyFocus" rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm">${esc(state.projectSummary.weeklyFocus||"")}</textarea></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Launch Goal</label><textarea name="launchGoal" rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm">${esc(state.projectSummary.launchGoal||"")}</textarea></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Save Summary</button>
+        </form>`,
+
+      roadmapItem: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Add Roadmap Item</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.addRoadmapItem(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Phase Name</label><input name="phase" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="API Integration"></div>
+          <div class="grid grid-cols-3 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Status</label><select name="status" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="todo">Todo</option><option value="doing">In Progress</option><option value="done">Done</option></select></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Start</label><input name="start" type="date" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">End</label><input name="end" type="date" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Description</label><textarea name="description" rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></textarea></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Add Item</button>
+        </form>`,
+
+      riskItem: `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Add Risk</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <form onsubmit="App.addRiskItem(event)" class="p-6 space-y-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Risk Title</label><input name="title" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Backend delay"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Level</label><select name="level" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Owner</label><input name="owner" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Name"></div>
+          </div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Description</label><textarea name="description" rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></textarea></div>
+          <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Add Risk</button>
+        </form>`
+    };
+
+    if (type === "editMilestone" && targetId) {
+      const m = state.milestones.find(x => x.id === targetId);
+      if (m) {
+        views.editMilestone = `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Update Milestone</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+          <form onsubmit="App.updateMilestone(event,'${esc(m.id)}')" class="p-6 space-y-4">
+            <div class="bg-indigo-500/5 border border-indigo-500/20 p-4 rounded-2xl mb-4"><h4 class="text-sm font-bold text-indigo-400">${esc(m.title)}</h4></div>
+            <div><div class="flex justify-between items-center mb-2"><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest">Progress</label><span id="range-val" class="text-xs font-mono text-indigo-400 font-bold">${Number(m.progress||0)}%</span></div><input name="progress" type="range" min="0" max="100" class="w-full accent-indigo-500" value="${Number(m.progress||0)}" oninput="document.getElementById('range-val').innerText=this.value+'%'"></div>
+            <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Notes</label><textarea name="description" required rows="3" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm">${esc(m.description||"")}</textarea></div>
+            <button type="submit" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-500">Update Milestone</button>
+          </form>`;
+      }
+    }
+
+    content.innerHTML = views[type] || "";
+    requestAnimationFrame(() => { content.classList.remove("scale-95", "opacity-0"); });
+    lucide.createIcons();
+  },
+
+  closeModal() {
+    const overlay = document.getElementById("modal-overlay");
+    const content = document.getElementById("modal-content");
+    if (!overlay || !content) return;
+    content.classList.add("scale-95", "opacity-0");
+    if (this.modalCloseTimer) clearTimeout(this.modalCloseTimer);
+    this.modalCloseTimer = setTimeout(() => {
+      overlay.classList.add("hidden");
+      overlay.classList.remove("flex");
+      content.innerHTML = "";
+    }, 200);
+  },
+
+  openEditProjectModal(projectId) {
+    const project = this.getProjectById(projectId);
+    if (!project || !this.canManageProjectMembers(project)) return this.notify("Access denied");
+    const overlay = document.getElementById("modal-overlay");
+    const content = document.getElementById("modal-content");
+    content.innerHTML = `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Edit Project</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="App.updateProject(event,'${esc(project.id)}')" class="p-6 space-y-4">
+        <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Name</label><input name="name" value="${esc(project.name||"")}" required autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+        <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Code</label><input name="code" value="${esc(project.code||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+        <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Description</label><textarea name="description" rows="4" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm">${esc(project.description||"")}</textarea></div>
+        <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Status</label><select name="status" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"><option value="active" ${project.status==="active"?"selected":""}>Active</option><option value="paused" ${project.status==="paused"?"selected":""}>Paused</option><option value="completed" ${project.status==="completed"?"selected":""}>Completed</option><option value="archived" ${project.status==="archived"?"selected":""}>Archived</option></select></div>
+        <div class="flex justify-end gap-3 pt-2"><button type="button" onclick="App.closeModal()" class="px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900/50 text-sm font-semibold">Cancel</button><button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-bold">Save</button></div>
+      </form>`;
+    overlay.classList.remove("hidden");
+    overlay.classList.add("flex");
+    requestAnimationFrame(() => { content.classList.remove("scale-95", "opacity-0"); });
+    lucide.createIcons();
+  },
+
+  openTransitionModal(projectId) {
+    const project = this.getProjectById(projectId);
+    if (!project) return this.notify("Project not found");
+    const currentStage = project.lifecycleStage || "Upstream";
+    const currentIndex = PROJECT_LIFECYCLE.indexOf(currentStage);
+    const nextStage = PROJECT_LIFECYCLE[currentIndex + 1];
+    if (!nextStage) return this.notify("Already at final stage");
+    const overlay = document.getElementById("modal-overlay");
+    const content = document.getElementById("modal-content");
+    const wf = project.workflowData || {};
+    content.innerHTML = `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Move Stage</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <form onsubmit="App.moveProjectStage(event,'${esc(project.id)}','${esc(nextStage)}')" class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Current</label><input value="${esc(currentStage)}" disabled class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-400"></div>
+          <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Next</label><input value="${esc(nextStage)}" disabled class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-400"></div>
+        </div>
+        <div><label class="text-[10px] uppercase font-black text-slate-500 tracking-widest block mb-2">Note</label><textarea name="note" rows="2" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Transition note..."></textarea></div>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-[10px] text-slate-400 mb-2 block">Proposal Document</label><input name="proposalDocument" value="${esc(wf.proposalDocument||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm" placeholder="Link or name"></div>
+          <div><label class="text-[10px] text-slate-400 mb-2 block">Estimated Budget</label><input name="estimatedBudget" value="${esc(wf.estimatedBudget||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          <div><label class="text-[10px] text-slate-400 mb-2 block">PO Number</label><input name="poNumber" value="${esc(wf.poNumber||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          <div><label class="text-[10px] text-slate-400 mb-2 block">Kickoff Date</label><input name="kickoffDate" type="date" value="${esc(wf.kickoffDate||"")}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          <div><label class="text-[10px] text-slate-400 mb-2 block">Deployment Date</label><input name="deploymentDate" type="date" value="${esc(wf.deploymentDate||"")}" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+          <div><label class="text-[10px] text-slate-400 mb-2 block">Handover Notes</label><input name="handoverNotes" value="${esc(wf.handoverNotes||"")}" autocomplete="off" class="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-sm"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          ${[["customerConfirmation","Customer Confirmation"],["scopeSignoff","Scope Sign-off"],["projectPlanApproved","Project Plan Approved"],["resourceAllocationDone","Resource Allocation Done"],["designApproved","Design Approved"],["devComplete","Dev Complete"],["qaSignoff","QA Sign-off"]].map(([k,label])=>`<label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="${k}" class="accent-indigo-500" ${wf[k]?"checked":""}><span>${esc(label)}</span></label>`).join("")}
+        </div>
+        <div class="flex justify-end gap-3 pt-2"><button type="button" onclick="App.closeModal()" class="px-4 py-2.5 rounded-xl border border-white/10 bg-slate-900/50 text-sm font-semibold">Cancel</button><button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-bold">Confirm Move</button></div>
+      </form>`;
+    overlay.classList.remove("hidden");
+    overlay.classList.add("flex");
+    requestAnimationFrame(() => { content.classList.remove("scale-95", "opacity-0"); });
+    lucide.createIcons();
+  },
+
+  openManageMembersModal(projectId) {
+    const project = this.getProjectById(projectId);
+    if (!project || !this.canManageProjectMembers(project)) return this.notify("Access denied");
+    const members = state.users.filter(u => (project.memberIds||[]).includes(u.id));
+    const nonMembers = state.users.filter(u => !(project.memberIds||[]).includes(u.id));
+    const overlay = document.getElementById("modal-overlay");
+    const content = document.getElementById("modal-content");
+    content.innerHTML = `<div class="p-6 border-b border-white/5 bg-slate-900/40 flex items-center justify-between"><h3 class="font-bold">Manage Members</h3><button onclick="App.closeModal()" class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <div class="p-6 space-y-6">
+        <div><h4 class="font-semibold mb-3">Current Members</h4><div class="space-y-2">
+          ${members.map(u=>`<div class="flex items-center justify-between bg-slate-900/40 border border-white/10 rounded-2xl px-4 py-3"><div><div class="font-semibold">${esc(u.name)}</div><div class="text-xs text-slate-400">${esc(u.role)}</div></div>${u.id!==project.ownerId ? `<button type="button" onclick="App.removeProjectMember('${esc(project.id)}','${esc(u.id)}')" class="px-3 py-1 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-sm font-semibold">Remove</button>` : '<span class="text-xs text-slate-500">Owner</span>'}</div>`).join("")}
+        </div></div>
+        <div><h4 class="font-semibold mb-3">Add Members</h4><div class="space-y-2 max-h-64 overflow-y-auto">
+          ${nonMembers.map(u=>`<div class="flex items-center justify-between bg-slate-900/40 border border-white/10 rounded-2xl px-4 py-3"><div><div class="font-semibold">${esc(u.name)}</div><div class="text-xs text-slate-400">${esc(u.role)}</div></div><button type="button" onclick="App.addProjectMember('${esc(project.id)}','${esc(u.id)}')" class="px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-sm font-semibold">Add</button></div>`).join("")}
+          ${nonMembers.length===0 ? '<p class="text-slate-500 text-sm">No more users.</p>' : ""}
+        </div></div>
+      </div>`;
+    overlay.classList.remove("hidden");
+    overlay.classList.add("flex");
+    requestAnimationFrame(() => { content.classList.remove("scale-95", "opacity-0"); });
+    lucide.createIcons();
+  }
+};
+
+// ──────────────────────────────────────────────
+// BOOT
+// ──────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", () => App.init());
+</script>
+<script src="pulse-notifications.js"></script>
+</body>
+</html>
