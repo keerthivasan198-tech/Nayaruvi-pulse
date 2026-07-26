@@ -10,15 +10,15 @@ const Activity = require('./models/Activity');
 
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://nayaruvipulse.netlify.app'
-  ],
-  credentials: true
-}));
+// Allow all origins (Netlify, local, etc)
+app.use(cors());
 app.use(express.json());
+
+// Log all requests for debugging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, req.body);
+  next();
+});
 
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -35,13 +35,18 @@ mongoose.connect(process.env.MONGODB_URI)
 app.post('/api/workspaces', async (req, res) => {
   try {
     const { name, uid, email, displayName } = req.body;
+    if (!name || !uid) {
+      return res.status(400).json({ error: 'name and uid are required' });
+    }
     const workspace = new Workspace({
       name,
-      members: [{ uid, email, name: displayName, role: 'Founder' }]
+      members: [{ uid, email, name: displayName || email, role: 'Founder' }]
     });
     await workspace.save();
+    console.log('✅ Workspace created:', workspace._id);
     res.status(201).json(workspace);
   } catch (err) {
+    console.error('❌ Create workspace error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

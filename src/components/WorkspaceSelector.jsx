@@ -13,6 +13,7 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [wsError, setWsError] = useState('');
   const dropdownRef = useRef(null);
 
   const fetchWorkspaces = async (user) => {
@@ -87,7 +88,12 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
 
   const handleCreateWorkspace = async (e) => {
     e.preventDefault();
-    if (!newWsName.trim() || !auth.currentUser) return;
+    setWsError('');
+    if (!newWsName.trim()) return;
+    if (!auth.currentUser) {
+      setWsError('You must be logged in to create a workspace.');
+      return;
+    }
 
     try {
       const res = await fetch(`${API_URL}/workspaces`, {
@@ -107,13 +113,14 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
         setIsCreating(false);
         setActiveWorkspaceId(newWs._id);
         setIsOpen(false);
-        await fetchWorkspaces(auth.currentUser); // ✅ Pass user correctly
+        await fetchWorkspaces(auth.currentUser);
       } else {
         const err = await res.json();
-        console.error('Failed to create workspace:', err);
+        setWsError(err.error || 'Failed to create workspace. Please try again.');
       }
     } catch (error) {
-      console.error("Create workspace error:", error);
+      console.error('Create workspace error:', error);
+      setWsError('Network error. Check if the backend is running.');
     }
   };
 
@@ -153,6 +160,9 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
               placeholder="E.g. Acme Corp Workspace"
               className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base font-medium focus:outline-none focus:border-primary transition-colors mb-4"
             />
+            {wsError && (
+              <p className="text-red-500 text-sm font-medium mb-3">{wsError}</p>
+            )}
             <button 
               type="submit" 
               disabled={!newWsName.trim()}
