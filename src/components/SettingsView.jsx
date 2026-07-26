@@ -39,6 +39,9 @@ export default function SettingsView({ activeWorkspaceId }) {
     }
   };
 
+  const currentUserRole = members.find(m => m.uid === auth.currentUser?.uid)?.role || 'Member';
+  const isPrivileged = currentUserRole === 'Founder' || currentUserRole === 'Co-Founder' || currentUserRole === 'Admin';
+
   useEffect(() => {
     fetchData();
   }, [activeWorkspaceId]);
@@ -79,39 +82,41 @@ export default function SettingsView({ activeWorkspaceId }) {
     }
   };
 
-  // Add Member to Workspace / Project
+  // Add Member to Workspace / Project (Email Invite)
   const handleAddMember = async (e) => {
     e.preventDefault();
     if (!newMemberEmail.trim() || !activeWorkspaceId) return;
+    if (!selectedProjectId) {
+      alert("Please select a project to invite the member to.");
+      return;
+    }
 
     try {
-      const newUid = 'user_' + Date.now();
       const memberName = newMemberName.trim() || newMemberEmail.split('@')[0];
-      
-      const payload = { uid: newUid, name: memberName, email: newMemberEmail.trim(), role: newMemberRole };
-      
-      // Update Workspace Members
-      await fetch(`${API_URL}/workspaces/${activeWorkspaceId}/members`, {
+      const payload = {
+        email: newMemberEmail.trim(),
+        name: memberName,
+        role: newMemberRole,
+        workspaceId: activeWorkspaceId,
+        projectId: selectedProjectId
+      };
+
+      const res = await fetch(`${API_URL}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      // If project selected, add to project members
-      if (selectedProjectId) {
-        await fetch(`${API_URL}/projects/${selectedProjectId}/members`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+      if (!res.ok) {
+        throw new Error('Failed to send invitation');
       }
 
       setNewMemberEmail('');
       setNewMemberName('');
-      showStatus(`Added ${memberName} as ${newMemberRole}!`);
-      fetchData();
+      showStatus(`Invitation email sent to ${newMemberEmail.trim()}!`);
     } catch (err) {
-      console.error("Add member error:", err);
+      console.error("Invite member error:", err);
+      alert("Error sending invite. Please ensure the backend is running and configured correctly.");
     }
   };
 
@@ -121,7 +126,7 @@ export default function SettingsView({ activeWorkspaceId }) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col p-8 bg-[#DFD6AE] overflow-y-auto">
+    <div className="flex h-full w-full flex-col p-4 md:p-8 bg-[#DFD6AE] overflow-y-auto custom-scrollbar">
       
       {/* Header */}
       <div className="mb-8">
@@ -160,8 +165,9 @@ export default function SettingsView({ activeWorkspaceId }) {
           </div>
         </div>
 
-        {/* Section 1: Add New Member */}
-        <div className="celestique-card rounded-2xl p-6 text-[#274245]">
+        {/* Section 1: Add New Member (Hidden for non-privileged) */}
+        {isPrivileged && (
+          <div className="celestique-card rounded-2xl p-6 text-[#274245]">
           <h3 className="text-xl font-normal font-heading text-[#274245] uppercase tracking-wide mb-1 flex items-center">
             <UserPlus size={20} className="mr-2 text-[#274245]" /> Add Member & Assign Role
           </h3>
@@ -169,7 +175,7 @@ export default function SettingsView({ activeWorkspaceId }) {
             Invite a new team member into this workspace and assign their project role.
           </p>
 
-          <form onSubmit={handleAddMember} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <form onSubmit={handleAddMember} className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <input 
               type="text" 
               placeholder="Member Name"
@@ -186,6 +192,16 @@ export default function SettingsView({ activeWorkspaceId }) {
               className="bg-white border border-[#D4C99E] rounded-xl px-3.5 py-2.5 text-xs text-[#274245] font-medium focus:outline-none focus:border-[#274245]"
             />
             <select 
+              value={selectedProjectId}
+              onChange={e => setSelectedProjectId(e.target.value)}
+              className="bg-white border border-[#D4C99E] rounded-xl px-3 py-2.5 text-xs font-bold text-[#274245] focus:outline-none cursor-pointer"
+            >
+              <option value="" disabled>Select Project</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <select 
               value={newMemberRole}
               onChange={e => setNewMemberRole(e.target.value)}
               className="bg-white border border-[#D4C99E] rounded-xl px-3 py-2.5 text-xs font-bold text-[#274245] focus:outline-none cursor-pointer"
@@ -198,10 +214,11 @@ export default function SettingsView({ activeWorkspaceId }) {
               type="submit"
               className="btn-matte-primary py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center cursor-pointer font-heading"
             >
-              <Plus size={15} className="mr-1" /> Add Member
+              <Plus size={15} className="mr-1" /> Invite
             </button>
           </form>
-        </div>
+          </div>
+        )}
 
         {/* Section 2: Projects & Members Role Management */}
         <div className="celestique-card rounded-2xl p-6 text-[#274245]">
@@ -261,15 +278,19 @@ export default function SettingsView({ activeWorkspaceId }) {
                           <div className="flex items-center space-x-2">
                             <Shield size={13} className="text-[#5C6E6F]" />
                             <span className="text-[11px] font-bold text-[#5C6E6F]">Role:</span>
-                            <select 
-                              value={pm.role || 'Member'}
-                              onChange={e => handleProjectRoleChange(proj.id, pm.uid, e.target.value)}
-                              className="bg-white text-xs font-bold text-[#274245] border border-[#D4C99E] rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
-                            >
-                              <option value="Founder">Founder</option>
-                              <option value="Co-Founder">Co-Founder</option>
-                              <option value="Member">Member</option>
-                            </select>
+                            {isPrivileged ? (
+                              <select 
+                                value={pm.role || 'Member'}
+                                onChange={e => handleProjectRoleChange(proj.id, pm.uid, e.target.value)}
+                                className="bg-white text-xs font-bold text-[#274245] border border-[#D4C99E] rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                              >
+                                <option value="Founder">Founder</option>
+                                <option value="Co-Founder">Co-Founder</option>
+                                <option value="Member">Member</option>
+                              </select>
+                            ) : (
+                              <span className="text-xs font-bold text-[#274245]">{pm.role || 'Member'}</span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -312,15 +333,19 @@ export default function SettingsView({ activeWorkspaceId }) {
 
                 <div className="flex items-center space-x-2">
                   <span className="text-[11px] font-bold text-[#5C6E6F]">Global Role:</span>
-                  <select 
-                    value={m.role || 'Member'}
-                    onChange={e => handleWorkspaceRoleChange(m.uid, e.target.value)}
-                    className="bg-[#FAF7EC] text-xs font-bold text-[#274245] border border-[#D4C99E] rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
-                  >
-                    <option value="Founder">Founder</option>
-                    <option value="Co-Founder">Co-Founder</option>
-                    <option value="Member">Member</option>
-                  </select>
+                  {isPrivileged ? (
+                    <select 
+                      value={m.role || 'Member'}
+                      onChange={e => handleWorkspaceRoleChange(m.uid, e.target.value)}
+                      className="bg-[#FAF7EC] text-xs font-bold text-[#274245] border border-[#D4C99E] rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                    >
+                      <option value="Founder">Founder</option>
+                      <option value="Co-Founder">Co-Founder</option>
+                      <option value="Member">Member</option>
+                    </select>
+                  ) : (
+                    <span className="text-xs font-bold text-[#274245] bg-[#FAF7EC] px-2.5 py-1.5 rounded-lg border border-[#D4C99E]">{m.role || 'Member'}</span>
+                  )}
                 </div>
               </div>
             ))}

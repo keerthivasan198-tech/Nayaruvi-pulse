@@ -95,8 +95,8 @@ export default function ProjectsView({ activeWorkspaceId, activeProjectId, setAc
   };
 
   return (
-    <div className="flex h-full w-full flex-col p-8 bg-[#DFD6AE] overflow-y-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="flex h-full w-full flex-col p-4 md:p-8 bg-[#DFD6AE] overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
         <div>
           <h2 className="text-3xl font-normal text-[#274245] tracking-wide mb-1 font-heading uppercase">
             Projects

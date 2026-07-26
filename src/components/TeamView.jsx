@@ -9,6 +9,9 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const currentUserRole = members.find(m => m.uid === auth.currentUser?.uid)?.role || 'Member';
+  const isPrivileged = currentUserRole === 'Founder' || currentUserRole === 'Co-Founder' || currentUserRole === 'Admin';
+
   // 2. Fetch Members when a project is selected
   useEffect(() => {
     if (!activeProjectId) {
@@ -33,7 +36,29 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
     };
     
     fetchMembers();
+    fetchMembers();
   }, [activeProjectId]);
+
+  const handleRoleChange = async (memberUid, newRole) => {
+    if (!activeProjectId || !memberUid) return;
+    try {
+      const res = await fetch(`${API_URL}/projects/${activeProjectId}/members/${memberUid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        // Refresh members
+        const fetchRes = await fetch(`${API_URL}/projects/${activeProjectId}`);
+        if (fetchRes.ok) {
+          const data = await fetchRes.json();
+          setMembers(data.members || []);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update role:", err);
+    }
+  };
 
   if (loading) {
     return (
@@ -44,8 +69,8 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
   }
 
   return (
-    <div className="p-8 pb-32 max-w-7xl mx-auto w-full animate-fade-in">
-      <div className="mb-8 flex items-end justify-between">
+    <div className="p-4 md:p-8 pb-32 max-w-7xl mx-auto w-full animate-fade-in">
+      <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 sm:gap-0">
         <div>
           <h1 className="text-4xl font-bold text-[#274245] font-heading mb-2 tracking-tight">TEAM</h1>
           <p className="text-[#5C6E6F] font-medium">Manage project members, roles, and access.</p>
@@ -75,7 +100,7 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
                 <div className="p-8 text-center text-[#5C6E6F]">No members in this project.</div>
               ) : (
                 members.map((member, i) => (
-                  <div key={i} className="p-5 flex items-center justify-between hover:bg-white/40 transition-colors">
+                  <div key={i} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/40 transition-colors">
                     <div className="flex items-center gap-4">
                       <img 
                         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || member.email)}&background=274245&color=DFD6AE`} 
@@ -95,14 +120,26 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1.5 ${
-                        member.role === 'Founder' || member.role === 'Admin'
-                          ? 'bg-[#274245] text-[#DFD6AE]'
-                          : 'bg-[#E8E0BF] text-[#274245]'
-                      }`}>
-                        {member.role === 'Founder' || member.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
-                        {member.role || 'Member'}
-                      </span>
+                      {isPrivileged ? (
+                        <select 
+                          value={member.role || 'Member'}
+                          onChange={e => handleRoleChange(member.uid, e.target.value)}
+                          className="bg-white text-xs font-bold text-[#274245] border border-[#D4C99E] rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                        >
+                          <option value="Founder">Founder</option>
+                          <option value="Co-Founder">Co-Founder</option>
+                          <option value="Member">Member</option>
+                        </select>
+                      ) : (
+                        <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1.5 ${
+                          member.role === 'Founder' || member.role === 'Admin'
+                            ? 'bg-[#274245] text-[#DFD6AE]'
+                            : 'bg-[#E8E0BF] text-[#274245]'
+                        }`}>
+                          {member.role === 'Founder' || member.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
+                          {member.role || 'Member'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))

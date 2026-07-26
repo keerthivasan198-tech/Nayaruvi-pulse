@@ -104,10 +104,10 @@ export default function DashboardView({ activeWorkspaceId }) {
   return (
     <div className="flex h-full w-full bg-[#DFD6AE]">
       {/* Main Column */}
-      <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
         
         {/* Welcome Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
           <div>
             <h2 className="text-3xl font-normal text-[#274245] tracking-wide mb-1 font-heading uppercase">
               Workspace Overview
@@ -285,26 +285,29 @@ function StatCard({ icon, title, value, accent }) {
 
 function ProjectRow({ iconBg, title, category, progress, due, borderBottom = true }) {
   return (
-    <div className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50 transition-colors ${borderBottom ? 'border-b border-gray-100' : ''}`}>
-      <div className="flex items-center sm:w-[40%] mb-3 sm:mb-0">
-        <div className={`w-10 h-10 rounded-xl ${iconBg} text-white flex items-center justify-center mr-4 shadow-sm shrink-0`}>
-          <FolderOpen size={18} strokeWidth={2.2} />
+    <div className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors hover:bg-white/40 ${borderBottom ? 'border-b border-[#D4C99E]/50' : ''}`}>
+      <div className="flex items-center space-x-4">
+        <div className={`w-10 h-10 rounded-xl ${iconBg} text-[#FAF7EC] flex items-center justify-center font-bold text-sm shadow-sm`}>
+          {title.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h4 className="font-bold text-[#1F2825] text-sm line-clamp-1 tracking-tight">{title}</h4>
-          <p className="text-[11px] font-medium text-gray-500 mt-0.5 line-clamp-1">{category || 'General Project'}</p>
+          <h4 className="text-[#274245] font-bold text-sm mb-0.5">{title}</h4>
+          <span className="text-xs text-[#5C6E6F] font-semibold">{category}</span>
         </div>
       </div>
-      
-      <div className="sm:w-[30%] flex items-center mb-3 sm:mb-0 pr-4">
-        <div className="w-full bg-gray-150 h-2 rounded-full overflow-hidden mr-3">
-          <div className="bg-[#374D46] h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6 w-full sm:w-auto">
+        <div className="w-full sm:w-32">
+          <div className="flex justify-between text-[10px] mb-1 font-bold text-[#5C6E6F]">
+            <span>Progress</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="w-full bg-[#E8E0BF] rounded-full h-1.5 border border-[#D4C99E]/30">
+            <div className="bg-[#274245] h-1.5 rounded-full" style={{ width: `${progress}%` }}></div>
+          </div>
         </div>
-        <span className="text-xs font-bold text-gray-600 w-8">{progress}%</span>
-      </div>
-
-      <div className="sm:w-[20%] flex items-center justify-end">
-        <span className="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg">{due}</span>
+        <span className="text-[11px] font-bold text-[#274245] bg-[#FAF7EC] px-2.5 py-1 rounded-md border border-[#D4C99E] shadow-xs whitespace-nowrap self-start sm:self-auto">
+          {due}
+        </span>
       </div>
     </div>
   );

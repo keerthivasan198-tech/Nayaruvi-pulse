@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { ref, onValue, push, set } from 'firebase/database';
-import { Video, Megaphone, Send } from 'lucide-react';
+import { ref, onValue, push, set, remove, update } from 'firebase/database';
+import { Video, Megaphone, Send, Pencil, Trash2, X, Check } from 'lucide-react';
 
 export default function ActivityView({ activeWorkspaceId, activeProjectId }) {
   const [activities, setActivities] = useState([]);
   const [projects, setProjects] = useState([]);
   const [newAnnouncement, setNewAnnouncement] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editContent, setEditContent] = useState('');
 
   useEffect(() => {
     if (!activeWorkspaceId) {
@@ -72,11 +74,35 @@ export default function ActivityView({ activeWorkspaceId, activeProjectId }) {
         type: 'announcement',
         workspaceId: activeWorkspaceId,
         projectId: activeProjectId || null,
+        uid: auth.currentUser.uid,
         timestamp: new Date().toISOString()
       });
       setNewAnnouncement('');
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this activity?')) return;
+    try {
+      await remove(ref(db, `dashboard_activity/${id}`));
+    } catch (err) {
+      console.error("Delete activity error:", err);
+    }
+  };
+
+  const handleUpdate = async (id) => {
+    if (!editContent.trim()) return;
+    try {
+      await update(ref(db, `dashboard_activity/${id}`), {
+        content: editContent,
+        edited: true
+      });
+      setEditingId(null);
+      setEditContent('');
+    } catch (err) {
+      console.error("Update activity error:", err);
     }
   };
 
@@ -106,7 +132,7 @@ export default function ActivityView({ activeWorkspaceId, activeProjectId }) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col p-8 bg-[#DFD6AE] overflow-y-auto">
+    <div className="flex h-full w-full flex-col p-4 md:p-8 bg-[#DFD6AE] overflow-y-auto custom-scrollbar">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h2 className="text-3xl font-normal text-[#274245] tracking-wide mb-1 font-heading uppercase">
@@ -130,17 +156,68 @@ export default function ActivityView({ activeWorkspaceId, activeProjectId }) {
                 <div className="w-10 h-10 rounded-xl bg-[#274245] text-[#FAF7EC] flex items-center justify-center mr-4 shrink-0 font-bold text-sm shadow-sm font-heading">
                   {act.user.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm text-[#274245] font-medium mb-1">
-                    <span className="font-extrabold text-[#274245]">{act.user}</span> {act.action} <span className="font-extrabold text-[#274245]">{act.target}</span>
-                  </p>
-                  {act.content && (
-                    <div className="mt-2.5 p-3.5 bg-white rounded-xl text-sm text-[#274245] whitespace-pre-wrap border border-[#D4C99E] font-medium">
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm text-[#274245] font-medium mb-1">
+                      <span className="font-extrabold text-[#274245]">{act.user}</span> {act.action} <span className="font-extrabold text-[#274245]">{act.target}</span>
+                    </p>
+                    
+                    {/* Action buttons (Edit/Delete) */}
+                    {(act.uid === auth.currentUser?.uid || act.user === auth.currentUser?.displayName || act.user === auth.currentUser?.email?.split('@')[0]) && (
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button 
+                          onClick={() => {
+                            setEditingId(act.id);
+                            setEditContent(act.content);
+                          }}
+                          className="text-[#5C6E6F] hover:text-[#274245] transition-colors p-1"
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(act.id)}
+                          className="text-[#5C6E6F] hover:text-red-600 transition-colors p-1"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {editingId === act.id ? (
+                    <div className="mt-2.5">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="w-full bg-white border border-[#274245] rounded-xl p-3 text-sm text-[#274245] focus:outline-none focus:ring-1 focus:ring-[#274245] resize-none mb-2"
+                        rows={3}
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <button 
+                          onClick={() => setEditingId(null)}
+                          className="text-xs font-bold text-[#5C6E6F] hover:text-[#274245] px-3 py-1.5"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          onClick={() => handleUpdate(act.id)}
+                          className="bg-[#274245] text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-[#1A2C2E]"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  ) : act.content ? (
+                    <div className="mt-2.5 p-3.5 bg-white rounded-xl text-sm text-[#274245] whitespace-pre-wrap border border-[#D4C99E] font-medium overflow-wrap-anywhere">
                       {renderContent(act.content)}
                     </div>
-                  )}
+                  ) : null}
+
                   <span className="text-[11px] font-semibold text-[#5C6E6F] mt-2 block">
                     {new Date(act.timestamp).toLocaleString()}
+                    {act.edited && <span className="italic ml-2">(edited)</span>}
                   </span>
                 </div>
               </div>

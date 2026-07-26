@@ -18,7 +18,7 @@ import SettingsView from './components/SettingsView';
 import ProfileModal from './components/ProfileModal';
 
 function MainApp() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1280);
   const [user, setUser] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'Dashboard');
@@ -29,11 +29,11 @@ function MainApp() {
   // Profile Modal State & User Profile Details
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState({
-    name: 'Manikandan',
-    email: 'manikandan@nayaruvi.com',
-    role: 'Product Manager',
-    avatar: 'https://ui-avatars.com/api/?name=Manikandan&background=2B2420&color=FAF8F5',
-    bio: 'Building modern digital products at Nayaruvi.'
+    name: '',
+    email: '',
+    role: '',
+    avatar: '',
+    bio: ''
   });
 
   // Sync tab state with URL
@@ -66,7 +66,8 @@ function MainApp() {
         setUserProfile(prev => ({
           ...prev,
           email: currentUser.email || prev.email,
-          name: currentUser.displayName || prev.name
+          name: currentUser.displayName || prev.name || currentUser.email?.split('@')[0],
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName || currentUser.email || 'User')}&background=274245&color=DFD6AE`,
         }));
       }
       setLoading(false);
@@ -100,6 +101,14 @@ function MainApp() {
         userProfile={userProfile}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
       />
+
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 xl:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       
       <main className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative bg-[#DFD6AE]">
         <TopNav toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />

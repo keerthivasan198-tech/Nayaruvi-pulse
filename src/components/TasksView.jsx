@@ -164,6 +164,23 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
 
       await Promise.race([savePromise, timeoutPromise]);
 
+      if (taskData.assigneeId && taskData.assigneeId !== auth.currentUser?.uid) {
+        const assignee = projectMembers.find(m => m.uid === taskData.assigneeId);
+        const actRef = push(ref(db, 'dashboard_activity'));
+        await set(actRef, {
+          user: auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0],
+          action: 'assigned a task to',
+          target: assignee ? (assignee.name || assignee.email) : 'someone',
+          targetUserId: taskData.assigneeId,
+          content: newTaskContent,
+          type: 'task_assignment',
+          workspaceId: activeWorkspaceId,
+          projectId: activeProjectId || null,
+          uid: auth.currentUser?.uid,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       setNewTaskContent('');
       setActiveAddCol(null);
     } catch (error) {
@@ -173,10 +190,10 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col p-8 bg-[#DFD6AE] overflow-hidden">
+    <div className="flex h-full w-full flex-col p-4 md:p-8 bg-[#DFD6AE] overflow-hidden">
       
       {/* Header & Toggles */}
-      <div className="flex justify-between items-center mb-6 shrink-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0 mb-6 shrink-0">
         <div>
           <h2 className="text-3xl font-normal text-[#274245] tracking-wide mb-1 flex items-center font-heading uppercase">
             Tasks
@@ -208,7 +225,7 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
       <div className="flex-1 overflow-hidden relative">
         {viewMode === 'board' ? (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-4 h-full">
+            <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-4 h-full snap-x snap-mandatory">
               {COLUMN_ORDER.map((columnId) => {
                 const column = COLUMNS[columnId];
                 const columnTasks = getTasksByColumn(columnId);
@@ -278,7 +295,7 @@ function KanbanColumn({ column, tasks, isAdding, setIsAdding, newTaskContent, se
   };
 
   return (
-    <div className="w-[300px] flex-shrink-0 flex flex-col bg-[#F8FAFC] rounded-[16px] p-3 border border-[var(--color-border)] shadow-sm h-fit max-h-full">
+    <div className="w-[85vw] md:w-[300px] snap-center flex-shrink-0 flex flex-col bg-[#F8FAFC] rounded-[16px] p-3 border border-[var(--color-border)] shadow-sm h-fit max-h-full">
       <div className="flex items-center justify-between mb-3 px-2 pt-1">
         <div className="flex items-center">
           <h4 className={`font-bold text-sm ${column.color}`}>{column.title}</h4>

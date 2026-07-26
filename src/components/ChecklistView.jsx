@@ -109,7 +109,7 @@ export default function ChecklistView({ activeWorkspaceId, activeProjectId }) {
   const progress = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
 
   return (
-    <div className="flex h-full w-full justify-center bg-[#DFD6AE] p-8 overflow-y-auto">
+    <div className="flex h-full w-full justify-center bg-[#DFD6AE] p-4 md:p-8 overflow-y-auto custom-scrollbar">
       <div className="w-full max-w-3xl flex flex-col">
         
         {/* Header */}

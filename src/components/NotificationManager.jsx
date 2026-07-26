@@ -28,11 +28,12 @@ export default function NotificationManager() {
           lastActivityCount.current = activities.length;
 
           newActivities.forEach(activity => {
-            // Only notify if it's a message targeted at the current user
+            if (!auth.currentUser) return;
+
+            // Message notifications
             if (
               activity.type === 'message' && 
-              auth.currentUser && 
-              activity.target === (auth.currentUser.displayName || auth.currentUser.email.split('@')[0])
+              activity.target === (auth.currentUser.displayName || auth.currentUser.email?.split('@')[0])
             ) {
               const newNotif = {
                 id: Date.now() + Math.random(),
@@ -42,7 +43,24 @@ export default function NotificationManager() {
               
               setNotifications(prev => [...prev, newNotif]);
               
-              // Auto-dismiss after 5 seconds
+              setTimeout(() => {
+                setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
+              }, 5000);
+            }
+
+            // Task assignment notifications
+            if (
+              activity.type === 'task_assignment' && 
+              activity.targetUserId === auth.currentUser.uid
+            ) {
+              const newNotif = {
+                id: Date.now() + Math.random(),
+                title: `Task Assigned: ${activity.user}`,
+                content: activity.content
+              };
+              
+              setNotifications(prev => [...prev, newNotif]);
+              
               setTimeout(() => {
                 setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
               }, 5000);

@@ -13,10 +13,12 @@ export default function Sidebar({
   activeProjectId, setActiveProjectId,
   userProfile, onOpenProfileModal 
 }) {
-  if (!isOpen) return null;
+  const baseClasses = "w-[260px] flex-shrink-0 bg-[#274245] text-[#DFD6AE] border-r border-[#1C3235] flex flex-col h-full shadow-sapling-lg transition-transform duration-300";
+  const mobileClasses = "fixed inset-y-0 left-0 z-40 xl:relative xl:translate-x-0";
+  const translateClass = isOpen ? "translate-x-0" : "-translate-x-full xl:hidden";
 
   return (
-    <aside className="w-[260px] flex-shrink-0 bg-[#274245] text-[#DFD6AE] border-r border-[#1C3235] flex flex-col h-full z-10 shadow-sapling-lg">
+    <aside className={`${baseClasses} ${mobileClasses} ${translateClass}`}>
       {/* Brand Logo */}
       <div className="h-[72px] flex items-center px-6 cursor-pointer shrink-0">
         <div className="w-9 h-9 rounded-xl bg-[#DFD6AE] text-[#274245] flex items-center justify-center mr-3.5 shadow-md font-bold">
@@ -43,13 +45,13 @@ export default function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-4 space-y-1.5 pt-1">
-        <NavItem icon={<Home size={18} />} label="Dashboard" active={activeTab === 'Dashboard'} onClick={() => setActiveTab('Dashboard')} />
-        <NavItem icon={<Folder size={18} />} label="Projects" active={activeTab === 'Projects'} onClick={() => setActiveTab('Projects')} />
-        <NavItem icon={<CheckSquare size={18} />} label="Tasks" active={activeTab === 'Tasks'} onClick={() => setActiveTab('Tasks')} />
-        <NavItem icon={<ListTodo size={18} />} label="Checklist" active={activeTab === 'Checklist'} onClick={() => setActiveTab('Checklist')} />
-        <NavItem icon={<Users size={18} />} label="Team" active={activeTab === 'Team'} onClick={() => setActiveTab('Team')} />
-        <NavItem icon={<Activity size={18} />} label="Activity" active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
-        <NavItem icon={<Settings size={18} />} label="Settings" active={activeTab === 'Settings'} onClick={() => setActiveTab('Settings')} />
+        <NavItem icon={<Home size={18} />} label="Dashboard" active={activeTab === 'Dashboard'} onClick={() => { setActiveTab('Dashboard'); if (window.innerWidth < 1280) setIsOpen(false); }} />
+        <NavItem icon={<Folder size={18} />} label="Projects" active={activeTab === 'Projects'} onClick={() => { setActiveTab('Projects'); if (window.innerWidth < 1280) setIsOpen(false); }} />
+        <NavItem icon={<CheckSquare size={18} />} label="Tasks" active={activeTab === 'Tasks'} onClick={() => { setActiveTab('Tasks'); if (window.innerWidth < 1280) setIsOpen(false); }} />
+        <NavItem icon={<ListTodo size={18} />} label="Checklist" active={activeTab === 'Checklist'} onClick={() => { setActiveTab('Checklist'); if (window.innerWidth < 1280) setIsOpen(false); }} />
+        <NavItem icon={<Users size={18} />} label="Team" active={activeTab === 'Team'} onClick={() => { setActiveTab('Team'); if (window.innerWidth < 1280) setIsOpen(false); }} />
+        <NavItem icon={<Activity size={18} />} label="Activity" active={activeTab === 'Activity'} onClick={() => { setActiveTab('Activity'); if (window.innerWidth < 1280) setIsOpen(false); }} />
+        <NavItem icon={<Settings size={18} />} label="Settings" active={activeTab === 'Settings'} onClick={() => { setActiveTab('Settings'); if (window.innerWidth < 1280) setIsOpen(false); }} />
       </div>
 
       {/* User Profile Footer (Single Place Down in Left Corner) */}
@@ -68,8 +70,10 @@ export default function Sidebar({
               />
             </div>
             <div className="ml-3 flex flex-col">
-              <span className="text-xs font-bold text-[#DFD6AE] leading-tight group-hover:underline">{userProfile?.name || "Manikandan"}</span>
-              <span className="text-[11px] text-[#DFD6AE]/75 font-medium">{userProfile?.role || "Product Manager"}</span>
+              <span className="text-xs font-bold text-[#DFD6AE] leading-tight group-hover:underline">{userProfile?.name || "User"}</span>
+              {userProfile?.role && (
+                <span className="text-[11px] text-[#DFD6AE]/75 font-medium">{userProfile.role}</span>
+              )}
             </div>
           </div>
           <ChevronDown size={14} className="text-[#DFD6AE]/75 group-hover:text-white" />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Flag, User, Clock, Tag, MessageSquare, Image as ImageIcon } from 'lucide-react';
-import { db } from '../firebase';
-import { ref, update, onValue } from 'firebase/database';
+import { db, auth } from '../firebase';
+import { ref, update, onValue, push, set } from 'firebase/database';
 
 export default function TaskDetailModal({ task, onClose, projectId }) {
   const [formData, setFormData] = useState({ ...task });
@@ -32,6 +32,24 @@ export default function TaskDetailModal({ task, onClose, projectId }) {
         photoBase64: imagePreview || null,
         updatedAt: new Date().toISOString()
       });
+
+      if (formData.assigneeId && formData.assigneeId !== task.assigneeId && formData.assigneeId !== auth.currentUser?.uid) {
+        const assignee = members.find(m => m.uid === formData.assigneeId);
+        const actRef = push(ref(db, 'dashboard_activity'));
+        await set(actRef, {
+          user: auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0],
+          action: 'assigned a task to',
+          target: assignee ? (assignee.name || assignee.email) : 'someone',
+          targetUserId: formData.assigneeId,
+          content: formData.content,
+          type: 'task_assignment',
+          workspaceId: task.workspaceId || null,
+          projectId: projectId || null,
+          uid: auth.currentUser?.uid,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       onClose();
     } catch (e) {
       console.error(e);
@@ -84,7 +102,7 @@ export default function TaskDetailModal({ task, onClose, projectId }) {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row p-8 gap-8">
+        <div className="flex flex-col md:flex-row p-4 md:p-8 gap-4 md:gap-8">
           {/* Main Content Area */}
           <div className="flex-1">
             {/* Title */}
@@ -92,7 +110,7 @@ export default function TaskDetailModal({ task, onClose, projectId }) {
               type="text" 
               value={formData.content} 
               onChange={e => setFormData({...formData, content: e.target.value})}
-              className="text-3xl font-bold text-text-primary w-full border-none focus:outline-none focus:ring-0 mb-4 bg-transparent placeholder:text-gray-300"
+              className="text-2xl sm:text-3xl font-bold text-text-primary w-full border-none focus:outline-none focus:ring-0 mb-4 bg-transparent placeholder:text-gray-300"
               placeholder="Task Name..."
             />
 

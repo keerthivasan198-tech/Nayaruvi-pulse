@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 // Import Models
 const Workspace = require('./models/Workspace');
@@ -26,8 +27,65 @@ mongoose.connect(process.env.MONGODB_URI)
 .catch((err) => console.error('❌ MongoDB connection error:', err));
 
 // =======================
+// EMAIL CONFIG
+// =======================
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // Standard configuration for Gmail
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+// =======================
 // ROUTES
 // =======================
+
+// --- Invitations ---
+app.post('/api/invite', async (req, res) => {
+  try {
+    const { email, name, role, workspaceId, projectId } = req.body;
+
+    if (!email || !workspaceId || !projectId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/invite/${projectId}?workspaceId=${workspaceId}`;
+
+    const mailOptions = {
+      from: `"Nayaruvi Pulse" <${process.env.SMTP_USER || 'noreply@nayaruvi.com'}>`,
+      to: email,
+      subject: `You have been invited to join ${project.title} on Nayaruvi Pulse`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #274245; background-color: #FAF7EC; max-width: 600px; margin: 0 auto; border-radius: 8px;">
+          <h2 style="color: #274245; margin-bottom: 20px;">Nayaruvi Pulse Invitation</h2>
+          <p>Hello ${name},</p>
+          <p>You have been formally invited to join the project <strong>"${project.title}"</strong> as a <strong>${role}</strong>.</p>
+          <p>Click the button below to accept your invitation, sign in, and start collaborating with your team.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${inviteLink}" style="background-color: #274245; color: #DFD6AE; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">Accept Invitation</a>
+          </div>
+          <p style="font-size: 12px; color: #5C6E6F;">If the button above does not work, copy and paste this link into your browser: <br/>${inviteLink}</p>
+        </div>
+      `
+    };
+
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      await transporter.sendMail(mailOptions);
+      console.log(`✅ Invite email sent to ${email}`);
+    } else {
+      console.warn(`⚠️ SMTP not configured! Mocking invite to ${email}. Link: ${inviteLink}`);
+    }
+
+    res.status(200).json({ success: true, message: 'Invitation sent' });
+  } catch (err) {
+    console.error('❌ Invite error:', err);
+    res.status(500).json({ error: 'Failed to send invite email' });
+  }
+});
 
 // Health check - keeps Render awake
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
