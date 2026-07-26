@@ -13,6 +13,7 @@ export default function TeamView({ activeWorkspaceId, activeProjectId }) {
   useEffect(() => {
     if (!activeProjectId) {
       setMembers([]);
+      setLoading(false);
       return;
     }
 

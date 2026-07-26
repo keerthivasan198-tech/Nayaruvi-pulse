@@ -50,8 +50,8 @@ export default function ChecklistView({ activeWorkspaceId, activeProjectId }) {
   };
 
   const handleAddItem = async (e) => {
-    if (e.key === 'Enter' && newItemText.trim() && activeProjectId) {
-      e.preventDefault();
+    if ((e.type === 'click' || e.key === 'Enter') && newItemText.trim() && activeProjectId) {
+      if (e.preventDefault) e.preventDefault();
       try {
         const itemRef = push(ref(db, `dashboard_projects/${activeProjectId}/checklist`));
         await set(itemRef, {
@@ -195,7 +195,12 @@ export default function ChecklistView({ activeWorkspaceId, activeProjectId }) {
 
           {/* Add New Item Input */}
           <div className="flex items-center mt-4 pl-8 group pt-2 border-t border-slate-100">
-            <Plus size={18} className="text-emerald-600 mr-3 shrink-0" />
+            <button 
+              onClick={handleAddItem}
+              className="p-1 rounded-full hover:bg-emerald-50 text-emerald-600 mr-2 shrink-0 transition-colors cursor-pointer"
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
             <input 
               type="text"
               value={newItemText}
