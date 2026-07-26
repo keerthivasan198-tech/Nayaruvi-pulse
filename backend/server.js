@@ -29,6 +29,10 @@ mongoose.connect(process.env.MONGODB_URI)
 // ROUTES
 // =======================
 
+// Health check - keeps Render awake
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/workspaces/ping', (req, res) => res.json({ status: 'awake' }));
+
 // --- Workspaces ---
 
 // Create Workspace

@@ -14,7 +14,13 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [wsError, setWsError] = useState('');
+  const [wsCreating, setWsCreating] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Wake up Render backend on mount (free tier sleeps after inactivity)
+  useEffect(() => {
+    fetch(`${API_URL}/workspaces/ping`).catch(() => {});
+  }, []);
 
   const fetchWorkspaces = async (user) => {
     if (!user) return;
@@ -95,32 +101,46 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
       return;
     }
 
-    try {
-      const res = await fetch(`${API_URL}/workspaces`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newWsName,
-          uid: auth.currentUser.uid,
-          email: auth.currentUser.email,
-          displayName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
-        })
-      });
-      
-      if (res.ok) {
-        const newWs = await res.json();
-        setNewWsName('');
-        setIsCreating(false);
-        setActiveWorkspaceId(newWs._id);
-        setIsOpen(false);
-        await fetchWorkspaces(auth.currentUser);
-      } else {
-        const err = await res.json();
-        setWsError(err.error || 'Failed to create workspace. Please try again.');
+    setWsCreating(true);
+    // Retry up to 3 times to handle Render cold start
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(`${API_URL}/workspaces`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newWsName,
+            uid: auth.currentUser.uid,
+            email: auth.currentUser.email,
+            displayName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+          })
+        });
+
+        if (res.ok) {
+          const newWs = await res.json();
+          setNewWsName('');
+          setIsCreating(false);
+          setActiveWorkspaceId(newWs._id);
+          setIsOpen(false);
+          setWsCreating(false);
+          await fetchWorkspaces(auth.currentUser);
+          return;
+        } else {
+          const err = await res.json();
+          setWsError(err.error || 'Failed to create workspace.');
+          setWsCreating(false);
+          return;
+        }
+      } catch (error) {
+        if (attempt < 3) {
+          // Wait 3 seconds before retrying (server may be waking up)
+          setWsError(`Server waking up... retrying (${attempt}/3)`);
+          await new Promise(r => setTimeout(r, 3000));
+        } else {
+          setWsError('Server is starting up. Please wait 30 seconds and try again.');
+          setWsCreating(false);
+        }
       }
-    } catch (error) {
-      console.error('Create workspace error:', error);
-      setWsError('Network error. Check if the backend is running.');
     }
   };
 
@@ -161,14 +181,16 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
               className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base font-medium focus:outline-none focus:border-primary transition-colors mb-4"
             />
             {wsError && (
-              <p className="text-red-500 text-sm font-medium mb-3">{wsError}</p>
+              <p className="text-sm font-medium mb-3" style={{color: wsError.includes('waking') ? '#d97706' : '#ef4444'}}>{wsError}</p>
             )}
             <button 
               type="submit" 
-              disabled={!newWsName.trim()}
-              className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!newWsName.trim() || wsCreating}
+              className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              Create Workspace
+              {wsCreating ? (
+                <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>Creating...</>
+              ) : 'Create Workspace'}
             </button>
           </form>
         </div>
