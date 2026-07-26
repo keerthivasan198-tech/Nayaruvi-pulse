@@ -5,6 +5,7 @@ import DashboardView from './components/DashboardView';
 import TasksView from './components/TasksView';
 import ProjectsView from './components/ProjectsView';
 import ChecklistView from './components/ChecklistView';
+import TeamView from './components/TeamView';
 import ActivityView from './components/ActivityView';
 import LoginPage from './components/LoginPage';
 import { auth } from './firebase';
@@ -89,6 +90,7 @@ function MainApp() {
           {activeTab === 'Projects' && <ProjectsView activeWorkspaceId={activeWorkspaceId} />}
           {activeTab === 'Tasks' && <TasksView activeWorkspaceId={activeWorkspaceId} />}
           {activeTab === 'Checklist' && <ChecklistView activeWorkspaceId={activeWorkspaceId} />}
+          {activeTab === 'Team' && <TeamView activeWorkspaceId={activeWorkspaceId} />}
           {activeTab === 'Activity' && <ActivityView activeWorkspaceId={activeWorkspaceId} />}
           {activeTab === 'Settings' && <SettingsView activeWorkspaceId={activeWorkspaceId} />}
         </div>

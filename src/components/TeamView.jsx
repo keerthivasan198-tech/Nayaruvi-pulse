@@ -1,0 +1,185 @@
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { auth } from '../firebase';
+import { Users, FolderOpen, Shield, Mail, Activity, Calendar } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
+
+export default function TeamView({ activeWorkspaceId }) {
+  const [projects, setProjects] = useState([]);
+  const [activeProjectId, setActiveProjectId] = useState('');
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 1. Fetch Projects for the workspace
+  useEffect(() => {
+    if (!activeWorkspaceId || !auth.currentUser) {
+      setProjects([]);
+      setActiveProjectId('');
+      setLoading(false);
+      return;
+    }
+
+    const fetchProjects = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/projects/workspace/${activeWorkspaceId}/user/${auth.currentUser.uid}`);
+        if (res.ok) {
+          const data = await res.json();
+          const myProjects = data.map(p => ({ id: p._id, ...p }));
+          setProjects(myProjects);
+          
+          if (myProjects.length > 0) {
+            setActiveProjectId(myProjects[0].id);
+          } else {
+            setActiveProjectId('');
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching projects for team:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [activeWorkspaceId]);
+
+  // 2. Fetch Members when a project is selected
+  useEffect(() => {
+    if (!activeProjectId) {
+      setMembers([]);
+      return;
+    }
+
+    const fetchMembers = async () => {
+      try {
+        const res = await fetch(`${API_URL}/projects/${activeProjectId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMembers(data.members || []);
+        }
+      } catch (err) {
+        console.error("Error fetching project members:", err);
+      }
+    };
+    
+    fetchMembers();
+  }, [activeProjectId]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-8">
+        <div className="w-8 h-8 rounded-full border-4 border-[#274245] border-t-transparent animate-spin"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 pb-32 max-w-7xl mx-auto w-full animate-fade-in">
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-[#274245] font-heading mb-2 tracking-tight">TEAM</h1>
+          <p className="text-[#5C6E6F] font-medium">Manage project members, roles, and access.</p>
+        </div>
+        <div className="bg-[#FAF7EC] px-4 py-2 rounded-xl border border-[#D4C99E] shadow-sm flex items-center gap-3">
+          <Users size={20} className="text-[#274245]" />
+          <span className="font-bold text-[#274245]">{members.length} Members</span>
+        </div>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="celestique-card p-12 text-center flex flex-col items-center justify-center rounded-2xl border border-[#C9BD91]">
+          <div className="w-16 h-16 rounded-full bg-[#E8E0BF] flex items-center justify-center mb-4">
+            <FolderOpen size={32} className="text-[#274245]" />
+          </div>
+          <h3 className="text-xl font-bold text-[#274245] mb-2 font-heading">No Projects Found</h3>
+          <p className="text-[#5C6E6F] max-w-md">You need to create a project first before you can manage team members.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-8">
+          
+          {/* Project Selector sidebar */}
+          <div className="w-full lg:w-1/3 space-y-4">
+            <h3 className="text-lg font-bold text-[#274245] font-heading px-2">Select Project</h3>
+            <div className="flex flex-col gap-3">
+              {projects.map(proj => (
+                <div 
+                  key={proj.id}
+                  onClick={() => setActiveProjectId(proj.id)}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 ${
+                    activeProjectId === proj.id 
+                    ? 'bg-[#274245] border-[#274245] shadow-md transform scale-[1.02]' 
+                    : 'bg-white border-[#C9BD91] hover:border-[#274245] hover:shadow-sm'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    activeProjectId === proj.id ? 'bg-white/10 text-[#DFD6AE]' : 'bg-[#FAF7EC] text-[#274245]'
+                  }`}>
+                    <FolderOpen size={20} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`font-bold truncate ${
+                      activeProjectId === proj.id ? 'text-white' : 'text-[#274245]'
+                    }`}>{proj.title}</h4>
+                    <p className={`text-xs font-medium truncate ${
+                      activeProjectId === proj.id ? 'text-white/70' : 'text-[#5C6E6F]'
+                    }`}>{proj.status || 'Active'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Members List */}
+          <div className="w-full lg:w-2/3">
+            <div className="celestique-card rounded-2xl overflow-hidden border border-[#C9BD91]">
+              <div className="p-6 border-b border-[#C9BD91]/50 bg-white/50 backdrop-blur-sm flex justify-between items-center">
+                <h3 className="text-lg font-bold text-[#274245] font-heading">Project Members</h3>
+              </div>
+              <div className="divide-y divide-[#C9BD91]/30">
+                {members.length === 0 ? (
+                  <div className="p-8 text-center text-[#5C6E6F]">No members in this project.</div>
+                ) : (
+                  members.map((member, i) => (
+                    <div key={i} className="p-5 flex items-center justify-between hover:bg-white/40 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || member.email)}&background=274245&color=DFD6AE`} 
+                          alt="avatar" 
+                          className="w-12 h-12 rounded-xl border border-[#C9BD91] shadow-sm"
+                        />
+                        <div>
+                          <h4 className="font-bold text-[#274245] flex items-center gap-2">
+                            {member.name || 'Unknown User'}
+                            {member.uid === auth.currentUser?.uid && (
+                              <span className="text-[10px] uppercase font-bold bg-[#E8E0BF] text-[#274245] px-2 py-0.5 rounded-full">You</span>
+                            )}
+                          </h4>
+                          <div className="flex items-center gap-3 text-sm text-[#5C6E6F] mt-1">
+                            <span className="flex items-center gap-1"><Mail size={14}/> {member.email}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1.5 ${
+                          member.role === 'Founder' || member.role === 'Admin'
+                            ? 'bg-[#274245] text-[#DFD6AE]'
+                            : 'bg-[#E8E0BF] text-[#274245]'
+                        }`}>
+                          {member.role === 'Founder' || member.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
+                          {member.role || 'Member'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      )}
+    </div>
+  );
+}
