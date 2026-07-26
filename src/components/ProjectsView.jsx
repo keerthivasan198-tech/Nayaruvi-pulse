@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, MoreVertical, Link, Plus, CheckCircle2, Shield, User } from 'lucide-react';
+import { FolderOpen, MoreVertical, Link, Plus, CheckCircle2, Shield, User, Trash2 } from 'lucide-react';
 import { auth } from '../firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
@@ -22,6 +22,23 @@ export default function ProjectsView({ activeWorkspaceId, activeProjectId, setAc
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this project? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`${API_URL}/projects/${projectId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProjects(projects.filter(p => p.id !== projectId));
+        if (activeProjectId === projectId) {
+          setActiveProjectId('');
+        }
+        setActiveMenuId(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      alert("Failed to delete project.");
     }
   };
 
@@ -166,9 +183,15 @@ export default function ProjectsView({ activeWorkspaceId, activeProjectId, setAc
                       </button>
                       <button 
                         onClick={() => { setManagingProject(proj); setActiveMenuId(null); }}
-                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#2B2420] hover:bg-[#F4F0EA] flex items-center transition-colors"
+                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#2B2420] hover:bg-[#F4F0EA] flex items-center transition-colors border-b border-[#DDD5CC]/50"
                       >
                         <User size={14} className="mr-2.5 text-[#7D7268]" /> Manage Roles
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteProject(proj.id)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center transition-colors"
+                      >
+                        <Trash2 size={14} className="mr-2.5" /> Delete Project
                       </button>
                     </div>
                   )}
