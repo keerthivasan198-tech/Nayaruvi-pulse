@@ -65,7 +65,7 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
         const tasksList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
         
         const projectTasks = tasksList.filter(t => t.projectId === activeProjectId);
-        projectTasks.sort((a, b) => a.order - b.order);
+        projectTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
         setTasks(projectTasks);
       } else {
         setTasks([]);
@@ -137,7 +137,8 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
     }
 
     const colTasks = getTasksByColumn(columnId);
-    const order = colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 1000 : 1000;
+    const lastOrder = colTasks.length > 0 ? (colTasks[colTasks.length - 1].order || 0) : 0;
+    const order = lastOrder + 1000;
     const projectTitle = projects.find(p => p.id === activeProjectId)?.title || 'General';
 
     try {
@@ -303,6 +304,12 @@ function KanbanColumn({ column, tasks, isAdding, setIsAdding, newTaskContent, se
                   autoFocus
                   value={newTaskContent}
                   onChange={(e) => setNewTaskContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onSubmit(e);
+                    }
+                  }}
                   placeholder="Task Name..."
                   className="w-full text-sm font-bold text-text-primary focus:outline-none mb-4 placeholder:text-text-secondary"
                 />

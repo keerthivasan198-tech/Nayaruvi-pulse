@@ -4,7 +4,7 @@ import { auth } from '../firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
 
-export default function ProjectsView({ activeWorkspaceId }) {
+export default function ProjectsView({ activeWorkspaceId, activeProjectId, setActiveProjectId, setActiveTab }) {
   const [projects, setProjects] = useState([]);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [copySuccessId, setCopySuccessId] = useState(null);
@@ -124,12 +124,14 @@ export default function ProjectsView({ activeWorkspaceId }) {
             <p className="font-medium text-xs max-w-xs mx-auto text-[#7D7268]">Create a new project to start collaborating with your team.</p>
           </div>
         ) : (
-          projects.map((proj, i) => {
+          projects
+            .filter(proj => activeProjectId ? proj.id === activeProjectId : true)
+            .map((proj, i, filteredProjects) => {
             const leader = isLeader(proj);
             const memberCount = proj.members ? Object.keys(proj.members).length : 0;
             return (
-              <div key={proj.id} className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-[#F4F0EA] transition-colors ${i !== projects.length - 1 ? 'border-b border-[#DDD5CC]' : ''}`}>
-                <div className="flex items-center sm:w-[40%] mb-3 sm:mb-0 cursor-pointer group" onClick={() => leader && setManagingProject(proj)}>
+              <div key={proj.id} className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-[#F4F0EA] transition-colors ${i !== filteredProjects.length - 1 ? 'border-b border-[#DDD5CC]' : ''}`}>
+                <div className="flex items-center sm:w-[40%] mb-3 sm:mb-0 cursor-pointer group" onClick={() => { setActiveProjectId(proj.id); setActiveTab('Tasks'); }}>
                   <div className="w-10 h-10 rounded-xl bg-[#2B2420] text-[#FAF8F5] flex items-center justify-center mr-4 shadow-sm shrink-0 group-hover:scale-105 transition-transform">
                     <FolderOpen size={18} strokeWidth={2.2} />
                   </div>

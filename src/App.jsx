@@ -106,7 +106,7 @@ function MainApp() {
         
         <div className="flex-1 overflow-auto custom-scrollbar relative">
           {activeTab === 'Dashboard' && <DashboardView activeWorkspaceId={activeWorkspaceId} />}
-          {activeTab === 'Projects' && <ProjectsView activeWorkspaceId={activeWorkspaceId} setActiveProjectId={setActiveProjectId} setActiveTab={setActiveTab} />}
+          {activeTab === 'Projects' && <ProjectsView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} setActiveProjectId={setActiveProjectId} setActiveTab={setActiveTab} />}
           {activeTab === 'Tasks' && <TasksView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}
           {activeTab === 'Checklist' && <ChecklistView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}
           {activeTab === 'Team' && <TeamView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}

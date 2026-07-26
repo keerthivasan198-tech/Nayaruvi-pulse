@@ -24,14 +24,7 @@ export default function ProjectSelector({ activeWorkspaceId, activeProjectId, se
         const myProjects = data.map(p => ({ id: p._id, ...p }));
         setProjects(myProjects);
         
-        // Auto-select if nothing is selected or if current selection is invalid
-        if (myProjects.length > 0) {
-          if (!activeProjectId || !myProjects.find(p => p.id === activeProjectId)) {
-            setActiveProjectId(myProjects[0].id);
-          }
-        } else {
-          setActiveProjectId('');
-        }
+        // We do not auto-select a project here anymore, so the user can view all projects on the Projects page initially.
       }
     } catch (err) {
       console.error(err);
@@ -90,14 +83,37 @@ export default function ProjectSelector({ activeWorkspaceId, activeProjectId, se
           </div>
 
           <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
-            {projects.length === 0 ? (
-              <div className="p-4 text-center text-sm font-medium text-[#7D7268]">
-                No projects found.
-              </div>
-            ) : (
-              projects.map(proj => (
-                <button
-                  key={proj.id}
+              {/* All Projects Option */}
+              <button
+                onClick={() => {
+                  setActiveProjectId('');
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 flex items-center space-x-3 transition-colors ${
+                  !activeProjectId 
+                  ? 'bg-[#EFE8DD] text-[#2B2420]' 
+                  : 'hover:bg-[#F8F5F1] text-[#4A423A]'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  !activeProjectId ? 'bg-[#2B2420] text-[#FAF8F5]' : 'bg-[#DDD5CC] text-[#7D7268]'
+                }`}>
+                  <FolderOpen size={14} />
+                </div>
+                <div className="flex flex-col truncate">
+                  <span className="font-bold text-sm truncate">All Projects (Unselected)</span>
+                  <span className="text-[10px] font-medium opacity-70">Workspace Level</span>
+                </div>
+              </button>
+
+              {projects.length === 0 ? (
+                <div className="px-4 py-4 text-center text-[#7D7268] text-xs font-bold">
+                  No projects found
+                </div>
+              ) : (
+                projects.map(proj => (
+                  <button
+                    key={proj.id}
                   onClick={() => {
                     setActiveProjectId(proj.id);
                     setIsOpen(false);
