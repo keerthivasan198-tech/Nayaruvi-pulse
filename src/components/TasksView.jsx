@@ -8,6 +8,8 @@ import TaskDetailModal from './TaskDetailModal';
 
 import { useSearchParams } from 'react-router-dom';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse-zmst.onrender.com/api';
+
 const COLUMNS = {
   'col-todo': { id: 'col-todo', title: 'To Do', color: 'text-text-primary', badge: 'bg-[#F1F5F9] text-text-secondary' },
   'col-progress': { id: 'col-progress', title: 'In Progress', color: 'text-warning', badge: 'bg-warning/10 text-warning' },
@@ -29,42 +31,34 @@ export default function TasksView({ activeWorkspaceId }) {
   const [projectMembers, setProjectMembers] = useState([]);
 
   useEffect(() => {
-    if (!activeWorkspaceId) {
+    if (!activeWorkspaceId || !auth.currentUser) {
       setProjects([]);
       setActiveProjectId('');
       return;
     }
 
-    const projectsRef = ref(db, 'dashboard_projects');
-    const unSubProjects = onValue(projectsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const projList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        
-        // Only show projects the user is a member of AND belong to activeWorkspaceId
-        const myProjects = projList.filter(p => {
-          if (p.workspaceId !== activeWorkspaceId) return false;
-          if (!p.members) return false;
-          return Object.values(p.members).some(m => m.uid === auth.currentUser?.uid);
-        });
-
-        setProjects(myProjects);
-        
-        // Reset activeProjectId if it's no longer in the list (e.g. workspace changed)
-        if (myProjects.length > 0) {
-          if (!myProjects.find(p => p.id === activeProjectId)) {
-            setActiveProjectId(myProjects[0].id);
+    const fetchProjects = async () => {
+      try {
+        const res = await fetch(`${API_URL}/projects/workspace/${activeWorkspaceId}/user/${auth.currentUser.uid}`);
+        if (res.ok) {
+          const data = await res.json();
+          const myProjects = data.map(p => ({ id: p._id, ...p }));
+          setProjects(myProjects);
+          
+          if (myProjects.length > 0) {
+            if (!myProjects.find(p => p.id === activeProjectId)) {
+              setActiveProjectId(myProjects[0].id);
+            }
+          } else {
+            setActiveProjectId('');
           }
-        } else {
-          setActiveProjectId('');
         }
-      } else {
-        setProjects([]);
-        setActiveProjectId('');
+      } catch (err) {
+        console.error("Error fetching projects for tasks:", err);
       }
-    });
+    };
 
-    return () => unSubProjects();
+    fetchProjects();
   }, [activeWorkspaceId, activeProjectId]);
 
   useEffect(() => {
@@ -88,16 +82,21 @@ export default function TasksView({ activeWorkspaceId }) {
       }
     });
 
-    const membersRef = ref(db, `dashboard_projects/${activeProjectId}/members`);
-    const unSubMembers = onValue(membersRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setProjectMembers(Object.values(snapshot.val()));
-      } else {
-        setProjectMembers([]);
+    const fetchMembers = async () => {
+      try {
+        const res = await fetch(`${API_URL}/projects/${activeProjectId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProjectMembers(data.members || []);
+        }
+      } catch (err) {
+        console.error("Error fetching project members:", err);
       }
-    });
+    };
+    
+    fetchMembers();
 
-    return () => { unSubTasks(); unSubMembers(); };
+    return () => { unSubTasks(); };
   }, [activeProjectId]);
 
   const getTasksByColumn = (columnId) => {
