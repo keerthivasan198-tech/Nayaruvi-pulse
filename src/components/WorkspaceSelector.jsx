@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { auth } from '../firebase';
 import { Settings, UserPlus, Box, LayoutTemplate, SquareAsterisk, Zap, Tags, Plus, CheckCircle2 } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://nayaruvi-pulse.onrender.com/api';
 
 export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspaceId, onOpenSettings }) {
   const [workspaces, setWorkspaces] = useState([]);
