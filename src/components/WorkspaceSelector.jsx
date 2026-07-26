@@ -102,8 +102,8 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
     }
 
     setWsCreating(true);
-    // Retry up to 3 times to handle Render cold start
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    // Retry up to 5 times to handle Render cold start (can take up to 60s)
+    for (let attempt = 1; attempt <= 5; attempt++) {
       try {
         const res = await fetch(`${API_URL}/workspaces`, {
           method: 'POST',
@@ -132,12 +132,11 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
           return;
         }
       } catch (error) {
-        if (attempt < 3) {
-          // Wait 3 seconds before retrying (server may be waking up)
-          setWsError(`Server waking up... retrying (${attempt}/3)`);
-          await new Promise(r => setTimeout(r, 3000));
+        if (attempt < 5) {
+          setWsError(`Server is waking up... please wait (${attempt * 10}s)`);
+          await new Promise(r => setTimeout(r, 10000)); // wait 10s between retries
         } else {
-          setWsError('Server is starting up. Please wait 30 seconds and try again.');
+          setWsError('Server is taking too long. Try clicking Create again in 30 seconds.');
           setWsCreating(false);
         }
       }
