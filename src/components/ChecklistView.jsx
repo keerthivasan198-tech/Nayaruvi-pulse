@@ -62,6 +62,7 @@ export default function ChecklistView({ activeWorkspaceId, activeProjectId }) {
         setNewItemText('');
       } catch (err) {
         console.error(err);
+        alert("Failed to save checklist item. Error: " + err.message);
       }
     }
   };

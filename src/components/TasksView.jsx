@@ -161,6 +161,7 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
       setActiveAddCol(null);
     } catch (error) {
       console.error("Add task error:", error);
+      alert("Failed to save task. Error: " + error.message);
     }
   };
 
