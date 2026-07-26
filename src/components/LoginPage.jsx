@@ -1,22 +1,42 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { Mail, Lock, LogIn, CheckCircle2, ChevronRight, Activity, AlertCircle } from 'lucide-react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile } from 'firebase/auth';
+import { Mail, Lock, LogIn, CheckCircle2, ChevronRight, Activity, AlertCircle, User } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  const handleEmailLogin = async (e) => {
+  const handleRedirect = () => {
+    const inviteId = searchParams.get('invite');
+    const wsId = searchParams.get('workspaceId');
+    if (inviteId) {
+      navigate(`/invite/${inviteId}${wsId ? `?workspaceId=${wsId}` : ''}`);
+    }
+  };
+
+  const handleEmailAuth = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      if (isSignUp) {
+        if (!name.trim()) throw new Error("Name is required");
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: name });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      handleRedirect();
     } catch (err) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
+      setError(err.message || `Failed to sign ${isSignUp ? 'up' : 'in'}. Please check your credentials.`);
     } finally {
       setLoading(false);
     }
@@ -26,6 +46,7 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+      handleRedirect();
     } catch (err) {
       setError(err.message || 'Failed to sign in with Google.');
     }
@@ -81,8 +102,12 @@ export default function LoginPage() {
         <div className="w-full max-w-[420px]">
           
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-text-primary mb-2">Welcome back</h2>
-            <p className="text-text-secondary font-medium">Please enter your details to sign in.</p>
+            <h2 className="text-3xl font-bold text-text-primary mb-2">
+              {isSignUp ? 'Create an account' : 'Welcome back'}
+            </h2>
+            <p className="text-text-secondary font-medium">
+              {isSignUp ? 'Get started with Nayaruvi today.' : 'Please enter your details to sign in.'}
+            </p>
           </div>
 
           <button 
@@ -95,7 +120,7 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            Sign in with Google
+            Sign {isSignUp ? 'up' : 'in'} with Google
           </button>
 
           <div className="flex items-center mb-6">
@@ -111,7 +136,23 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          <form onSubmit={handleEmailAuth} className="space-y-4">
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-bold text-text-primary mb-1.5">Full Name</label>
+                <div className="relative">
+                  <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+                  <input 
+                    type="text" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your name"
+                    required
+                    className="w-full bg-[#F8FAFC] border border-[var(--color-border)] rounded-[12px] pl-10 pr-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-medium"
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-bold text-text-primary mb-1.5">Email address</label>
               <div className="relative">
@@ -147,7 +188,9 @@ export default function LoginPage() {
                 <input type="checkbox" className="w-4 h-4 rounded border-[var(--color-border)] text-primary focus:ring-primary/20 accent-primary" />
                 <span className="ml-2 text-sm font-medium text-text-secondary">Remember me</span>
               </label>
-              <a href="#" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">Forgot password?</a>
+              {!isSignUp && (
+                <a href="#" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">Forgot password?</a>
+              )}
             </div>
 
             <button 
@@ -167,7 +210,13 @@ export default function LoginPage() {
           </form>
           
           <p className="text-center text-sm font-medium text-text-secondary mt-8">
-            Don't have an account? <a href="#" className="font-bold text-primary hover:text-primary/80">Sign up</a>
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{' '}
+            <button 
+              onClick={() => setIsSignUp(!isSignUp)} 
+              className="font-bold text-primary hover:text-primary/80 cursor-pointer bg-transparent border-none"
+            >
+              {isSignUp ? "Sign in" : "Sign up"}
+            </button>
           </p>
 
         </div>

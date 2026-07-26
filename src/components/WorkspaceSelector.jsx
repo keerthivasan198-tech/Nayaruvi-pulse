@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth } from '../firebase';
-import { ref, onValue, push, set } from 'firebase/database';
-import { Settings, UserPlus, Box, LayoutTemplate, SquareAsterisk, Zap, Tags, Plus } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { auth } from '../firebase';
+import { Settings, UserPlus, Box, LayoutTemplate, SquareAsterisk, Zap, Tags, Plus, CheckCircle2 } from 'lucide-react';
+
+const API_URL = 'http://localhost:5000/api';
 
 export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspaceId, onOpenSettings }) {
   const [workspaces, setWorkspaces] = useState([]);
@@ -13,43 +15,61 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
   const [loading, setLoading] = useState(true);
   const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const wsRef = ref(db, 'dashboard_workspaces');
-    const unsubscribe = onValue(wsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const wsList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        const myWs = wsList.filter(w => {
-          if (!w.members) return false;
-          return Object.values(w.members).some(m => m.uid === auth.currentUser?.uid);
-        });
-        setWorkspaces(myWs);
-        
-        if (myWs.length > 0 && !activeWorkspaceId) {
-          setActiveWorkspaceId(myWs[0].id);
+  const fetchWorkspaces = async (user) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`${API_URL}/workspaces/${user.uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(w => ({ id: w._id, ...w }));
+        setWorkspaces(formatted);
+        if (formatted.length > 0 && !activeWorkspaceId) {
+          setActiveWorkspaceId(formatted[0].id);
         }
-      } else {
-        setWorkspaces([]);
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [activeWorkspaceId, setActiveWorkspaceId]);
+    }
+  };
 
   useEffect(() => {
-    if (!activeWorkspaceId) return;
-    const projRef = ref(db, 'dashboard_projects');
-    const unsubscribe = onValue(projRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const projList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        const wsProj = projList.filter(p => p.workspaceId === activeWorkspaceId);
-        setProjects(wsProj);
-      } else {
-        setProjects([]);
-      }
+    import('firebase/auth').then(({ onAuthStateChanged }) => {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          fetchWorkspaces(user);
+        } else {
+          setLoading(false);
+        }
+      });
+      return () => unsubscribe();
     });
-    return () => unsubscribe();
+
+    const interval = setInterval(() => {
+      if (auth.currentUser) fetchWorkspaces(auth.currentUser);
+    }, 5000); // Polling for updates
+    
+    return () => clearInterval(interval);
+  }, [activeWorkspaceId, setActiveWorkspaceId]);
+
+  const fetchProjects = async () => {
+    if (!activeWorkspaceId || !auth.currentUser) return;
+    try {
+      const res = await fetch(`${API_URL}/projects/workspace/${activeWorkspaceId}/user/${auth.currentUser.uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.map(p => ({ id: p._id, ...p })));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+    const interval = setInterval(fetchProjects, 5000);
+    return () => clearInterval(interval);
   }, [activeWorkspaceId]);
 
   // Handle click outside to close dropdown
@@ -67,27 +87,28 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
 
   const handleCreateWorkspace = async (e) => {
     e.preventDefault();
-    if (!newWsName.trim()) return;
+    if (!newWsName.trim() || !auth.currentUser) return;
 
     try {
-      const newWsRef = push(ref(db, 'dashboard_workspaces'));
-      const wsData = {
-        name: newWsName,
-        createdAt: new Date().toISOString(),
-        members: {
-          [auth.currentUser.uid]: {
-            uid: auth.currentUser.uid,
-            name: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
-            email: auth.currentUser.email,
-            role: 'Founder'
-          }
-        }
-      };
-      await set(newWsRef, wsData);
-      setNewWsName('');
-      setIsCreating(false);
-      setActiveWorkspaceId(newWsRef.key);
-      setIsOpen(false);
+      const res = await fetch(`${API_URL}/workspaces`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newWsName,
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          displayName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+        })
+      });
+      
+      if (res.ok) {
+        const newWs = await res.json();
+        setNewWsName('');
+        setIsCreating(false);
+        setActiveWorkspaceId(newWs._id);
+        setIsOpen(false);
+        fetchWorkspaces();
+      }
     } catch (error) {
       console.error("Create workspace error:", error);
     }
@@ -110,9 +131,9 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
   const activeWsInitial = activeWsName.charAt(0).toUpperCase();
 
   if (!loading && workspaces.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-white z-[200] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white border border-[var(--color-border)] shadow-2xl rounded-2xl p-8 text-center animate-in fade-in zoom-in duration-300">
+    return createPortal(
+      <div className="fixed inset-0 bg-[#DFD6AE] z-[9999] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white border border-[#D4C99E] shadow-2xl rounded-2xl p-8 text-center animate-in fade-in zoom-in duration-300">
           <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 size={32} strokeWidth={2.5} />
           </div>
@@ -138,7 +159,8 @@ export default function WorkspaceSelector({ activeWorkspaceId, setActiveWorkspac
             </button>
           </form>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 

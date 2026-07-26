@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Shield, Camera, Check } from 'lucide-react';
+import { X, User, Mail, Shield, Camera, Check, LogOut } from 'lucide-react';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 export default function ProfileModal({ isOpen, onClose, profile, onSave }) {
   if (!isOpen) return null;
@@ -132,23 +134,36 @@ export default function ProfileModal({ isOpen, onClose, profile, onSave }) {
           </div>
 
           {/* Actions */}
-          <div className="pt-3 flex gap-3">
+          <div className="pt-3 flex flex-col gap-3">
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold btn-matte-secondary cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold btn-matte-primary flex items-center justify-center cursor-pointer font-heading"
+              >
+                {isSaved ? (
+                  <span className="flex items-center">
+                    <Check size={16} className="mr-1 text-emerald-400" /> Saved!
+                  </span>
+                ) : 'Save Profile'}
+              </button>
+            </div>
             <button 
               type="button" 
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl text-xs font-bold btn-matte-secondary cursor-pointer"
+              onClick={() => {
+                signOut(auth);
+                onClose();
+              }}
+              className="w-full py-2.5 rounded-xl text-xs font-bold border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center cursor-pointer transition-colors"
             >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="flex-1 py-2.5 rounded-xl text-xs font-bold btn-matte-primary flex items-center justify-center cursor-pointer font-heading"
-            >
-              {isSaved ? (
-                <span className="flex items-center">
-                  <Check size={16} className="mr-1 text-emerald-400" /> Saved!
-                </span>
-              ) : 'Save Profile'}
+              <LogOut size={16} className="mr-2" />
+              Sign Out
             </button>
           </div>
         </form>

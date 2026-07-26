@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"cd backend && node server.js\"",
     "build": "vite build",
-    "lint": "oxlint",
+    "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -24,6 +24,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.4",
     "clsx": "^2.1.1",
+    "concurrently": "^10.0.4",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.23",
     "tailwind-merge": "^3.6.0",

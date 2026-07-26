@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FolderOpen, MoreVertical, Link, Plus, CheckCircle2, Shield, User } from 'lucide-react';
-import { db, auth } from '../firebase';
-import { ref, onValue, update, push, set } from 'firebase/database';
+import { auth } from '../firebase';
+
+const API_URL = 'http://localhost:5000/api';
 
 export default function ProjectsView({ activeWorkspaceId }) {
   const [projects, setProjects] = useState([]);
@@ -11,73 +12,52 @@ export default function ProjectsView({ activeWorkspaceId }) {
   const [newProject, setNewProject] = useState({ title: '', status: 'Active' });
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateProject = async (e) => {
-    e.preventDefault();
-    if (!newProject.title.trim()) return;
-    if (!activeWorkspaceId) {
-      alert("Please create or select a workspace first!");
-      return;
-    }
-
+  const fetchProjects = async () => {
+    if (!activeWorkspaceId || !auth.currentUser) return;
     try {
-      const newProjRef = push(ref(db, 'dashboard_projects'));
-      const projectData = {
-        title: newProject.title,
-        status: newProject.status,
-        createdAt: new Date().toISOString(),
-        workspaceId: activeWorkspaceId,
-        members: {
-          [auth.currentUser.uid]: {
-            uid: auth.currentUser.uid,
-            name: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
-            email: auth.currentUser.email,
-            role: 'Founder'
-          }
-        },
-        stats: {
-          tasks: 0,
-          progress: 0,
-          members: 1
-        }
-      };
-      
-      await set(newProjRef, projectData);
-      
-      // Also log activity
-      const newActivityRef = push(ref(db, 'dashboard_activity'));
-      await set(newActivityRef, {
-        user: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
-        action: 'created project',
-        target: newProject.title,
-        timestamp: new Date().toISOString()
-      });
-
-      setNewProject({ title: '', status: 'Active' });
-      setIsCreating(false);
+      const res = await fetch(`${API_URL}/projects/workspace/${activeWorkspaceId}/user/${auth.currentUser.uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.map(p => ({ id: p._id, ...p })));
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
   useEffect(() => {
-    const projectsRef = ref(db, 'dashboard_projects');
-    const unsubscribe = onValue(projectsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const projList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        // Filter projects by active workspace and user membership
-        const workspaceProjects = projList.filter(p => {
-          if (p.workspaceId !== activeWorkspaceId) return false;
-          if (!p.members) return false;
-          return Object.values(p.members).some(m => m.uid === auth.currentUser?.uid);
-        });
-        setProjects(workspaceProjects);
-      } else {
-        setProjects([]);
-      }
-    });
-    return () => unsubscribe();
+    fetchProjects();
   }, [activeWorkspaceId]);
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    if (!newProject.title.trim() || !activeWorkspaceId || !auth.currentUser) return;
+
+    try {
+      const res = await fetch(`${API_URL}/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newProject.title,
+          status: newProject.status,
+          workspaceId: activeWorkspaceId,
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          displayName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+        })
+      });
+      
+      if (res.ok) {
+        setNewProject({ title: '', status: 'Active' });
+        setIsCreating(false);
+        fetchProjects();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+
 
   const handleGenerateLink = (projectId) => {
     const inviteLink = `${window.location.origin}/invite/${projectId}?workspaceId=${activeWorkspaceId}`;
@@ -92,8 +72,16 @@ export default function ProjectsView({ activeWorkspaceId }) {
     if (currentRole === 'Founder') return;
     try {
       const newRole = currentRole === 'Co-Founder' ? 'Member' : 'Co-Founder';
-      const memberRef = ref(db, `dashboard_projects/${projectId}/members/${memberKey}`);
-      await update(memberRef, { role: newRole });
+      const memberUid = Object.values(projects.find(p => p.id === projectId).members)[memberKey].uid;
+      
+      const res = await fetch(`${API_URL}/projects/${projectId}/members/${memberUid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        fetchProjects();
+      }
     } catch (e) {
       console.error("Failed to update role", e);
     }
@@ -126,7 +114,7 @@ export default function ProjectsView({ activeWorkspaceId }) {
         </button>
       </div>
 
-      <div className="celestique-card rounded-2xl overflow-hidden max-w-4xl text-[#274245]">
+      <div className="celestique-card rounded-2xl overflow-visible max-w-4xl text-[#274245]">
         {projects.length === 0 ? (
           <div className="p-12 text-center text-[#7D7268]">
             <div className="w-12 h-12 rounded-2xl bg-[#EBE4DB] border border-[#DDD5CC] flex items-center justify-center mx-auto mb-3">

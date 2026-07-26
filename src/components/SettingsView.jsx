@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { ref, onValue, update, push, set } from 'firebase/database';
 import { Shield, UserPlus, FolderOpen, Mail, CheckCircle2, ChevronRight, Settings as SettingsIcon, Plus, Check } from 'lucide-react';
+import { auth } from '../firebase';
+
+const API_URL = 'http://localhost:5000/api';
 
 export default function SettingsView({ activeWorkspaceId }) {
   const [workspace, setWorkspace] = useState(null);
@@ -15,60 +16,46 @@ export default function SettingsView({ activeWorkspaceId }) {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!activeWorkspaceId) return;
+    try {
+      const wsRes = await fetch(`${API_URL}/workspace/${activeWorkspaceId}`);
+      if (wsRes.ok) {
+        const ws = await wsRes.json();
+        setWorkspace(ws);
+        setMembers(ws.members || []);
+      }
 
-    // Fetch workspace details
-    const wsRef = ref(db, `dashboard_workspaces/${activeWorkspaceId}`);
-    const unsubWs = onValue(wsRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val) {
-        setWorkspace(val);
-        const membersList = [];
-        if (val.members) {
-          Object.keys(val.members).forEach(uid => {
-            membersList.push({
-              uid,
-              ...val.members[uid]
-            });
-          });
+      const projRes = await fetch(`${API_URL}/projects/workspace/${activeWorkspaceId}/user/${auth.currentUser.uid}`);
+      if (projRes.ok) {
+        const list = await projRes.json();
+        setProjects(list.map(p => ({ id: p._id, ...p })));
+        if (list.length > 0 && !selectedProjectId) {
+          setSelectedProjectId(list[0]._id);
         }
-        setMembers(membersList);
       }
-    });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    // Fetch workspace projects
-    const projRef = ref(db, 'dashboard_projects');
-    const unsubProj = onValue(projRef, (snapshot) => {
-      const val = snapshot.val();
-      const list = [];
-      if (val) {
-        Object.keys(val).forEach(key => {
-          if (val[key].workspaceId === activeWorkspaceId) {
-            list.push({ id: key, ...val[key] });
-          }
-        });
-      }
-      setProjects(list);
-      if (list.length > 0 && !selectedProjectId) {
-        setSelectedProjectId(list[0].id);
-      }
-    });
-
-    return () => {
-      unsubWs();
-      unsubProj();
-    };
+  useEffect(() => {
+    fetchData();
   }, [activeWorkspaceId]);
 
   // Handle Role Change in Workspace
   const handleWorkspaceRoleChange = async (memberUid, newRole) => {
     if (!activeWorkspaceId || !memberUid) return;
     try {
-      await update(ref(db, `dashboard_workspaces/${activeWorkspaceId}/members/${memberUid}`), {
-        role: newRole
+      const res = await fetch(`${API_URL}/workspaces/${activeWorkspaceId}/members/${memberUid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
       });
-      showStatus("Workspace member role updated successfully!");
+      if (res.ok) {
+        showStatus("Workspace member role updated successfully!");
+        fetchData();
+      }
     } catch (err) {
       console.error("Failed to update workspace role:", err);
     }
@@ -78,10 +65,15 @@ export default function SettingsView({ activeWorkspaceId }) {
   const handleProjectRoleChange = async (projectId, memberUid, newRole) => {
     if (!projectId || !memberUid) return;
     try {
-      await update(ref(db, `dashboard_projects/${projectId}/members/${memberUid}`), {
-        role: newRole
+      const res = await fetch(`${API_URL}/projects/${projectId}/members/${memberUid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
       });
-      showStatus("Project member role updated successfully!");
+      if (res.ok) {
+        showStatus("Project member role updated successfully!");
+        fetchData();
+      }
     } catch (err) {
       console.error("Failed to update project role:", err);
     }
@@ -96,27 +88,28 @@ export default function SettingsView({ activeWorkspaceId }) {
       const newUid = 'user_' + Date.now();
       const memberName = newMemberName.trim() || newMemberEmail.split('@')[0];
       
+      const payload = { uid: newUid, name: memberName, email: newMemberEmail.trim(), role: newMemberRole };
+      
       // Update Workspace Members
-      await update(ref(db, `dashboard_workspaces/${activeWorkspaceId}/members/${newUid}`), {
-        uid: newUid,
-        name: memberName,
-        email: newMemberEmail.trim(),
-        role: newMemberRole
+      await fetch(`${API_URL}/workspaces/${activeWorkspaceId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
       // If project selected, add to project members
       if (selectedProjectId) {
-        await update(ref(db, `dashboard_projects/${selectedProjectId}/members/${newUid}`), {
-          uid: newUid,
-          name: memberName,
-          email: newMemberEmail.trim(),
-          role: newMemberRole
+        await fetch(`${API_URL}/projects/${selectedProjectId}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
       }
 
       setNewMemberEmail('');
       setNewMemberName('');
       showStatus(`Added ${memberName} as ${newMemberRole}!`);
+      fetchData();
     } catch (err) {
       console.error("Add member error:", err);
     }
@@ -228,7 +221,7 @@ export default function SettingsView({ activeWorkspaceId }) {
           ) : (
             <div className="space-y-6">
               {projects.map(proj => {
-                const projMembers = proj.members ? Object.keys(proj.members).map(uid => ({ uid, ...proj.members[uid] })) : members;
+                const projMembers = proj.members && proj.members.length > 0 ? proj.members : members;
                 return (
                   <div key={proj.id} className="p-5 rounded-2xl bg-white border border-[#D4C99E] shadow-sm space-y-4">
                     

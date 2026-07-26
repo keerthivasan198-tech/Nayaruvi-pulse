@@ -3,8 +3,9 @@ import {
   CheckCircle2, Clock, AlertCircle, FolderOpen, 
   Plus, X
 } from 'lucide-react';
-import { db, auth } from '../firebase';
-import { ref, onValue, push, set } from 'firebase/database';
+import { auth } from '../firebase';
+
+const API_URL = 'http://localhost:5000/api';
 
 export default function DashboardView({ activeWorkspaceId }) {
   const [projects, setProjects] = useState([]);
@@ -13,116 +14,88 @@ export default function DashboardView({ activeWorkspaceId }) {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', category: '', dueDays: '7' });
 
-  // Load Data from Realtime Database
-  useEffect(() => {
-    if (!activeWorkspaceId) {
+  // Load Data from MongoDB
+  const fetchData = async () => {
+    if (!activeWorkspaceId || !auth.currentUser) {
       setProjects([]);
       setActivities([]);
       return;
     }
 
-    // Projects
-    const projectsRef = ref(db, 'dashboard_projects');
-    const unSubProjects = onValue(projectsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const projList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        
-        const myProjects = projList.filter(p => {
-          if (p.workspaceId !== activeWorkspaceId) return false;
-          if (!p.members) return false;
-          return Object.values(p.members).some(m => m.uid === auth.currentUser?.uid);
-        });
-        myProjects.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    try {
+      // Fetch Projects
+      const projRes = await fetch(`${API_URL}/projects/workspace/${activeWorkspaceId}/user/${auth.currentUser.uid}`);
+      if (projRes.ok) {
+        const myProjects = await projRes.json();
+        // Sort descending
+        myProjects.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         setProjects(myProjects);
-      } else {
-        setProjects([]);
       }
-    });
 
-    // Activities
-    const actRef = ref(db, 'dashboard_activity');
-    const unSubAct = onValue(actRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        let actList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        // Filter activities by workspaceId
-        actList = actList.filter(a => a.workspaceId === activeWorkspaceId);
-        actList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      // Fetch Activities
+      const actRes = await fetch(`${API_URL}/activity/${activeWorkspaceId}`);
+      if (actRes.ok) {
+        const actList = await actRes.json();
         setActivities(actList.slice(0, 5)); // Keep top 5 latest
-      } else {
-        setActivities([]);
       }
-    });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    return () => {
-      unSubProjects();
-      unSubAct();
-    };
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, [activeWorkspaceId]);
 
   const logActivity = async (action, target, type) => {
-    const newActivityRef = push(ref(db, 'dashboard_activity'));
-    await set(newActivityRef, {
-      user: 'Manikandan',
-      action,
-      target,
-      type,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      await fetch(`${API_URL}/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user: auth.currentUser?.displayName || 'User',
+          action,
+          target,
+          type,
+          workspaceId: activeWorkspaceId,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    if(!newProject.title) return;
+    if (!newProject.title || !auth.currentUser) return;
 
     try {
-      const newProjRef = push(ref(db, 'dashboard_projects'));
-      const projectData = {
-        title: newProject.title,
-        status: 'Active',
-        category: newProject.category,
-        workspaceId: activeWorkspaceId,
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(Date.now() + parseInt(newProject.dueDays) * 24 * 60 * 60 * 1000).toISOString(),
-        members: {
-          [auth.currentUser.uid]: {
-            uid: auth.currentUser.uid,
-            name: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
-            email: auth.currentUser.email,
-            role: 'Founder'
-          }
-        },
-        stats: {
-          tasks: 0,
-          progress: 0,
-          members: 1
-        }
-      };
-      
-      await set(newProjRef, projectData);
-      
-      // Also log activity
-      const newActivityRef = push(ref(db, 'dashboard_activity'));
-      await set(newActivityRef, {
-        user: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
-        action: 'created project',
-        target: newProject.title,
-        workspaceId: activeWorkspaceId,
-        timestamp: new Date().toISOString()
+      const res = await fetch(`${API_URL}/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newProject.title,
+          status: 'Active',
+          category: newProject.category || 'General',
+          workspaceId: activeWorkspaceId,
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          displayName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+          dueDate: new Date(Date.now() + parseInt(newProject.dueDays) * 24 * 60 * 60 * 1000).toISOString()
+        })
       });
-
-      setIsProjectModalOpen(false);
-      setNewProject({ title: '', category: '', dueDays: '7' });
+      
+      if (res.ok) {
+        await logActivity('created project', newProject.title, 'project');
+        setIsProjectModalOpen(false);
+        setNewProject({ title: '', category: '', dueDays: '7' });
+        fetchData();
+      }
     } catch (error) {
       console.error("Create project error:", error);
-      alert("Permission Denied: Please check your Firebase Realtime Database Rules.");
     }
   };
 
@@ -156,12 +129,12 @@ export default function DashboardView({ activeWorkspaceId }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatCard 
             icon={<CheckCircle2 size={22} className="text-[#274245]" />} 
-            title="Tasks Completed" value={12} 
+            title="Tasks Completed" value={0} 
             accent="bg-[#274245]/5 border-[#274245]/15"
           />
           <StatCard 
             icon={<Clock size={22} className="text-amber-700" />} 
-            title="In Progress" value={5} 
+            title="In Progress" value={0} 
             accent="bg-amber-500/10 border-amber-500/20"
           />
           <StatCard 
