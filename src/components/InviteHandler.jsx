@@ -76,18 +76,26 @@ export default function InviteHandler() {
 
     try {
       if (wsId) {
-        await fetch(`${API_URL}/workspaces/${wsId}/members`, {
+        const wsRes = await fetch(`${API_URL}/workspaces/${wsId}/members`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        if (!wsRes.ok) {
+          const errData = await wsRes.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to join workspace (${wsRes.status})`);
+        }
       }
 
-      await fetch(`${API_URL}/projects/${projectId}/members`, {
+      const projRes = await fetch(`${API_URL}/projects/${projectId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      if (!projRes.ok) {
+        const errData = await projRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to join project (${projRes.status})`);
+      }
       
       // Log activity
       await fetch(`${API_URL}/activity`, {
@@ -101,6 +109,8 @@ export default function InviteHandler() {
         })
       });
 
+      // Give backend a moment to settle
+      await new Promise(r => setTimeout(r, 1000));
       navigate('/');
     } catch (err) {
       console.error("Error joining project:", err);
