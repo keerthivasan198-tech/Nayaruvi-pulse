@@ -143,7 +143,8 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
 
     try {
       const newTaskRef = push(ref(db, 'dashboard_tasks'));
-      await set(newTaskRef, {
+      
+      const savePromise = set(newTaskRef, {
         content: newTaskContent,
         status: columnId,
         order: order,
@@ -156,6 +157,12 @@ export default function TasksView({ activeWorkspaceId, activeProjectId }) {
         photoBase64: taskData.photoBase64 || null,
         createdAt: new Date().toISOString()
       });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Database connection timed out. Please check if Realtime Database is enabled in your Firebase Console and the URL is correct in your environment variables.")), 5000)
+      );
+
+      await Promise.race([savePromise, timeoutPromise]);
 
       setNewTaskContent('');
       setActiveAddCol(null);

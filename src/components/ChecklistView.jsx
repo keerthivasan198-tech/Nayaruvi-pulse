@@ -54,11 +54,19 @@ export default function ChecklistView({ activeWorkspaceId, activeProjectId }) {
       if (e.preventDefault) e.preventDefault();
       try {
         const itemRef = push(ref(db, `dashboard_projects/${activeProjectId}/checklist`));
-        await set(itemRef, {
+        
+        const savePromise = set(itemRef, {
           text: newItemText.trim(),
           completed: false,
           order: items.length
         });
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Database connection timed out. Please check if Realtime Database is enabled in your Firebase Console and the URL is correct.")), 5000)
+        );
+
+        await Promise.race([savePromise, timeoutPromise]);
+
         setNewItemText('');
       } catch (err) {
         console.error(err);
