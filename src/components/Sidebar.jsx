@@ -5,9 +5,12 @@ import {
   Crown, ChevronDown, CheckCircle2, MessageSquare, ListTodo
 } from 'lucide-react';
 import WorkspaceSelector from './WorkspaceSelector';
+import ProjectSelector from './ProjectSelector';
 
 export default function Sidebar({ 
-  isOpen, setIsOpen, activeTab, setActiveTab, activeWorkspaceId, setActiveWorkspaceId, 
+  isOpen, setIsOpen, activeTab, setActiveTab, 
+  activeWorkspaceId, setActiveWorkspaceId, 
+  activeProjectId, setActiveProjectId,
   userProfile, onOpenProfileModal 
 }) {
   if (!isOpen) return null;
@@ -30,6 +33,12 @@ export default function Sidebar({
           activeWorkspaceId={activeWorkspaceId} 
           setActiveWorkspaceId={setActiveWorkspaceId} 
           onOpenSettings={() => setActiveTab('Settings')}
+        />
+        <ProjectSelector
+          activeWorkspaceId={activeWorkspaceId}
+          activeProjectId={activeProjectId}
+          setActiveProjectId={setActiveProjectId}
+          onNavigateToProjects={() => setActiveTab('Projects')}
         />
       </div>
 

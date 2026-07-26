@@ -3,11 +3,10 @@ import { db, auth } from '../firebase';
 import { ref, onValue, push, set } from 'firebase/database';
 import { Video, Megaphone, Send } from 'lucide-react';
 
-export default function ActivityView({ activeWorkspaceId }) {
+export default function ActivityView({ activeWorkspaceId, activeProjectId }) {
   const [activities, setActivities] = useState([]);
   const [projects, setProjects] = useState([]);
   const [newAnnouncement, setNewAnnouncement] = useState('');
-  const [selectedProject, setSelectedProject] = useState('');
 
   useEffect(() => {
     if (!activeWorkspaceId) {
@@ -22,7 +21,11 @@ export default function ActivityView({ activeWorkspaceId }) {
       const data = snapshot.val();
       if (data) {
         let actList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        actList = actList.filter(a => a.workspaceId === activeWorkspaceId);
+        if (activeProjectId) {
+          actList = actList.filter(a => a.projectId === activeProjectId);
+        } else {
+          actList = actList.filter(a => a.workspaceId === activeWorkspaceId);
+        }
         actList.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setActivities(actList);
       } else {
@@ -41,10 +44,9 @@ export default function ActivityView({ activeWorkspaceId }) {
           if (p.workspaceId !== activeWorkspaceId) return false;
           if (!p.members) return false;
           const userMember = Object.values(p.members).find(m => m.uid === auth.currentUser?.uid);
-          return userMember && (userMember.role === 'Founder' || userMember.role === 'Co-Founder');
+          return userMember && (userMember.role === 'Founder' || userMember.role === 'Co-Founder' || userMember.role === 'Admin');
         });
         setProjects(leaderProjs);
-        if (leaderProjs.length > 0) setSelectedProject(leaderProjs[0].id);
       } else {
         setProjects([]);
       }
@@ -65,14 +67,14 @@ export default function ActivityView({ activeWorkspaceId }) {
       await set(actRef, {
         user: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
         action: 'posted an announcement',
-        target: selectedProject ? `in ${projects.find(p => p.id === selectedProject)?.title || 'Project'}` : 'to the Workspace',
+        target: activeProjectId ? `in ${projects.find(p => p.id === activeProjectId)?.title || 'Project'}` : 'to the Workspace',
         content: newAnnouncement,
         type: 'announcement',
         workspaceId: activeWorkspaceId,
+        projectId: activeProjectId || null,
         timestamp: new Date().toISOString()
       });
       setNewAnnouncement('');
-      setSelectedProject('');
     } catch (err) {
       console.error(err);
     }
@@ -154,18 +156,8 @@ export default function ActivityView({ activeWorkspaceId }) {
             
             <form onSubmit={handlePostAnnouncement} className="space-y-4">
               {projects.length > 0 && (
-                <div>
-                  <label className="block text-xs font-bold text-[#7D7268] mb-1.5">Select Target Project (Optional)</label>
-                  <select
-                    value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full bg-white border border-[#DDD5CC] rounded-xl px-3 py-2 text-xs font-bold text-[#2B2420] focus:outline-none focus:border-[#2B2420]"
-                  >
-                    <option value="">Whole Workspace</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.title}</option>
-                    ))}
-                  </select>
+                <div className="mb-2 text-xs font-bold text-[#7D7268] uppercase tracking-wider">
+                  {activeProjectId ? 'Posting to Project' : 'Posting to Workspace'}
                 </div>
               )}
 

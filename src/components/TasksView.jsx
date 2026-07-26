@@ -18,7 +18,7 @@ const COLUMNS = {
 };
 const COLUMN_ORDER = ['col-todo', 'col-progress', 'col-review', 'col-completed'];
 
-export default function TasksView({ activeWorkspaceId }) {
+export default function TasksView({ activeWorkspaceId, activeProjectId }) {
   const [searchParams] = useSearchParams();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -27,13 +27,11 @@ export default function TasksView({ activeWorkspaceId }) {
   
   const [viewMode, setViewMode] = useState('board');
   const [selectedTask, setSelectedTask] = useState(null);
-  const [activeProjectId, setActiveProjectId] = useState(searchParams.get('proj') || ''); 
   const [projectMembers, setProjectMembers] = useState([]);
 
   useEffect(() => {
     if (!activeWorkspaceId || !auth.currentUser) {
       setProjects([]);
-      setActiveProjectId('');
       return;
     }
 
@@ -44,14 +42,6 @@ export default function TasksView({ activeWorkspaceId }) {
           const data = await res.json();
           const myProjects = data.map(p => ({ id: p._id, ...p }));
           setProjects(myProjects);
-          
-          if (myProjects.length > 0) {
-            if (!myProjects.find(p => p.id === activeProjectId)) {
-              setActiveProjectId(myProjects[0].id);
-            }
-          } else {
-            setActiveProjectId('');
-          }
         }
       } catch (err) {
         console.error("Error fetching projects for tasks:", err);
@@ -59,7 +49,7 @@ export default function TasksView({ activeWorkspaceId }) {
     };
 
     fetchProjects();
-  }, [activeWorkspaceId, activeProjectId]);
+  }, [activeWorkspaceId]);
 
   useEffect(() => {
     if (!activeProjectId) {
@@ -181,17 +171,6 @@ export default function TasksView({ activeWorkspaceId }) {
         <div>
           <h2 className="text-3xl font-normal text-[#274245] tracking-wide mb-1 flex items-center font-heading uppercase">
             Tasks
-            {projects.length > 0 && (
-              <select 
-                value={activeProjectId} 
-                onChange={(e) => setActiveProjectId(e.target.value)}
-                className="ml-4 text-xs font-bold bg-[#FAF7EC] text-[#274245] border border-[#D4C99E] rounded-xl px-3 py-1.5 focus:outline-none shadow-xs cursor-pointer font-sans"
-              >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
-            )}
           </h2>
           <p className="text-sm font-medium text-[#5C6E6F]">
             Organize tasks, manage board columns, and assign creations.

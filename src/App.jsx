@@ -23,6 +23,7 @@ function MainApp() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'Dashboard');
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(searchParams.get('ws') || null);
+  const [activeProjectId, setActiveProjectId] = useState(searchParams.get('proj') || null);
   const [loading, setLoading] = useState(true);
 
   // Profile Modal State & User Profile Details
@@ -37,10 +38,26 @@ function MainApp() {
 
   // Sync tab state with URL
   useEffect(() => {
-    if (activeTab !== searchParams.get('tab')) {
-      setSearchParams({ tab: activeTab });
+    const newParams = new URLSearchParams(searchParams);
+    let changed = false;
+    
+    if (activeTab !== newParams.get('tab')) {
+      newParams.set('tab', activeTab);
+      changed = true;
     }
-  }, [activeTab, searchParams, setSearchParams]);
+    if (activeWorkspaceId && activeWorkspaceId !== newParams.get('ws')) {
+      newParams.set('ws', activeWorkspaceId);
+      changed = true;
+    }
+    if (activeProjectId && activeProjectId !== newParams.get('proj')) {
+      newParams.set('proj', activeProjectId);
+      changed = true;
+    }
+    
+    if (changed) {
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [activeTab, activeWorkspaceId, activeProjectId, searchParams, setSearchParams]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -78,6 +95,8 @@ function MainApp() {
         setActiveTab={setActiveTab} 
         activeWorkspaceId={activeWorkspaceId}
         setActiveWorkspaceId={setActiveWorkspaceId}
+        activeProjectId={activeProjectId}
+        setActiveProjectId={setActiveProjectId}
         userProfile={userProfile}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
       />
@@ -87,11 +106,11 @@ function MainApp() {
         
         <div className="flex-1 overflow-auto custom-scrollbar relative">
           {activeTab === 'Dashboard' && <DashboardView activeWorkspaceId={activeWorkspaceId} />}
-          {activeTab === 'Projects' && <ProjectsView activeWorkspaceId={activeWorkspaceId} />}
-          {activeTab === 'Tasks' && <TasksView activeWorkspaceId={activeWorkspaceId} />}
-          {activeTab === 'Checklist' && <ChecklistView activeWorkspaceId={activeWorkspaceId} />}
-          {activeTab === 'Team' && <TeamView activeWorkspaceId={activeWorkspaceId} />}
-          {activeTab === 'Activity' && <ActivityView activeWorkspaceId={activeWorkspaceId} />}
+          {activeTab === 'Projects' && <ProjectsView activeWorkspaceId={activeWorkspaceId} setActiveProjectId={setActiveProjectId} setActiveTab={setActiveTab} />}
+          {activeTab === 'Tasks' && <TasksView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}
+          {activeTab === 'Checklist' && <ChecklistView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}
+          {activeTab === 'Team' && <TeamView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}
+          {activeTab === 'Activity' && <ActivityView activeWorkspaceId={activeWorkspaceId} activeProjectId={activeProjectId} />}
           {activeTab === 'Settings' && <SettingsView activeWorkspaceId={activeWorkspaceId} />}
         </div>
         <NotificationManager />

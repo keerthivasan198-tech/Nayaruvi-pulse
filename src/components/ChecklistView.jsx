@@ -4,16 +4,16 @@ import { db } from '../firebase';
 import { ref, onValue, push, set, update, remove } from 'firebase/database';
 import { Plus, GripVertical, Check, Trash2, ListTodo } from 'lucide-react';
 
-export default function ChecklistView({ activeWorkspaceId }) {
+export default function ChecklistView({ activeWorkspaceId, activeProjectId }) {
   const [items, setItems] = useState([]);
   const [newItemText, setNewItemText] = useState('');
 
   useEffect(() => {
-    if (!activeWorkspaceId) {
+    if (!activeProjectId) {
       setItems([]);
       return;
     }
-    const listRef = ref(db, `dashboard_workspaces/${activeWorkspaceId}/checklist`);
+    const listRef = ref(db, `dashboard_projects/${activeProjectId}/checklist`);
     const unsubscribe = onValue(listRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -25,7 +25,7 @@ export default function ChecklistView({ activeWorkspaceId }) {
       }
     });
     return () => unsubscribe();
-  }, [activeWorkspaceId]);
+  }, [activeProjectId]);
 
   const handleDragEnd = async (result) => {
     if (!result.destination) return;
@@ -41,7 +41,7 @@ export default function ChecklistView({ activeWorkspaceId }) {
     try {
       const updates = {};
       itemsCopy.forEach((item, index) => {
-        updates[`dashboard_workspaces/${activeWorkspaceId}/checklist/${item.id}/order`] = index;
+        updates[`dashboard_projects/${activeProjectId}/checklist/${item.id}/order`] = index;
       });
       await update(ref(db), updates);
     } catch (err) {
@@ -50,10 +50,10 @@ export default function ChecklistView({ activeWorkspaceId }) {
   };
 
   const handleAddItem = async (e) => {
-    if (e.key === 'Enter' && newItemText.trim() && activeWorkspaceId) {
+    if (e.key === 'Enter' && newItemText.trim() && activeProjectId) {
       e.preventDefault();
       try {
-        const itemRef = push(ref(db, `dashboard_workspaces/${activeWorkspaceId}/checklist`));
+        const itemRef = push(ref(db, `dashboard_projects/${activeProjectId}/checklist`));
         await set(itemRef, {
           text: newItemText.trim(),
           completed: false,
@@ -68,7 +68,7 @@ export default function ChecklistView({ activeWorkspaceId }) {
 
   const toggleItem = async (id, currentStatus) => {
     try {
-      await update(ref(db, `dashboard_workspaces/${activeWorkspaceId}/checklist/${id}`), {
+      await update(ref(db, `dashboard_projects/${activeProjectId}/checklist/${id}`), {
         completed: !currentStatus
       });
     } catch (err) {
@@ -79,7 +79,7 @@ export default function ChecklistView({ activeWorkspaceId }) {
   const updateItemText = async (id, newText) => {
     if (!newText.trim()) return;
     try {
-      await update(ref(db, `dashboard_workspaces/${activeWorkspaceId}/checklist/${id}`), {
+      await update(ref(db, `dashboard_projects/${activeProjectId}/checklist/${id}`), {
         text: newText.trim()
       });
     } catch (err) {
@@ -89,7 +89,7 @@ export default function ChecklistView({ activeWorkspaceId }) {
 
   const deleteItem = async (id) => {
     try {
-      await remove(ref(db, `dashboard_workspaces/${activeWorkspaceId}/checklist/${id}`));
+      await remove(ref(db, `dashboard_projects/${activeProjectId}/checklist/${id}`));
     } catch (err) {
       console.error(err);
     }
@@ -111,20 +111,25 @@ export default function ChecklistView({ activeWorkspaceId }) {
           <h1 className="text-4xl font-normal text-[#274245] tracking-wide mb-1 font-heading uppercase">Workspace Checklist</h1>
           <p className="text-sm font-medium text-[#5C6E6F]">Keep track of important to-dos, quick notes, and team action items.</p>
         </div>
-
-        {/* Progress Bar */}
-        <div className="mb-6 celestique-card p-4 rounded-2xl text-[#274245]">
-          <div className="flex justify-between text-xs font-bold text-[#5C6E6F] mb-2">
-            <span>{progress}% Completed</span>
-            <span>{completedCount} / {totalCount} items</span>
-          </div>
-          <div className="h-2 w-full bg-[#E8E0BF] rounded-full overflow-hidden border border-[#D4C99E]">
-            <div 
-              className="h-full bg-[#274245] transition-all duration-500 ease-out" 
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
+      {!activeProjectId ? (
+        <div className="flex-1 flex items-center justify-center text-[#5C6E6F] font-medium">
+          Please select a project from the sidebar to manage its checklist.
         </div>
+      ) : (
+        <>
+          {/* Progress Bar */}
+          <div className="mb-6 celestique-card p-4 rounded-2xl text-[#274245]">
+            <div className="flex justify-between text-xs font-bold text-[#5C6E6F] mb-2">
+              <span>{progress}% Completed</span>
+              <span>{completedCount} / {totalCount} items</span>
+            </div>
+            <div className="h-2 w-full bg-[#E8E0BF] rounded-full overflow-hidden border border-[#D4C99E]">
+              <div 
+                className="h-full bg-[#274245] transition-all duration-500 ease-out" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
 
         {/* Checklist Card */}
         <div className="celestique-card rounded-2xl p-6 min-h-[400px] text-[#274245]">
@@ -201,7 +206,8 @@ export default function ChecklistView({ activeWorkspaceId }) {
             />
           </div>
         </div>
-
+        </>
+      )}
       </div>
     </div>
   );
